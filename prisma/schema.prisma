@@ -1,0 +1,518 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                   String                @id @default(uuid())
+  email                String?               @unique
+  phone                String?               @unique
+  passwordHash         String?
+  firstName            String
+  lastName             String
+  avatar               String?
+  bio                  String?
+  role                 Role                  @default(MEMBER)
+  kycLevel             KycLevel              @default(NONE)
+  kycValidatedById     String?
+  kycValidatedAt       DateTime?
+  level                Int                   @default(1)
+  xp                   Int                   @default(0)
+  totalDonated         Float                 @default(0)
+  googleId             String?               @unique
+  twoFactorEnabled     Boolean               @default(false)
+  twoFactorSecret      String?
+  lastLogin            DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  canton               String?
+  city                 String?
+  currentCity          String?
+  currentCountry       String                @default("CI")
+  currentVillage       String?
+  dateOfBirth          DateTime?
+  village              String?
+  fonction             String?
+  boosts               Int                   @default(0)
+  totalEarned          Float                 @default(0)
+  auditLogs            AuditLog[]
+  callsMade            Call[]                @relation("Caller")
+  callsReceived        Call[]                @relation("Receiver")
+  checkIns             CheckIn[]
+  comments             Comment[]
+  donations            Donation[]
+  events               Event[]               @relation("Organizer")
+  familyRelationsFrom  FamilyRelation[]      @relation("FromUser")
+  familyRelationsTo    FamilyRelation[]      @relation("ToUser")
+  friendshipsReceived  Friendship[]          @relation("Addressee")
+  friendshipsRequested Friendship[]          @relation("Requester")
+  groupsCreated        Group[]               @relation("GroupCreator")
+  groupMembers         GroupMember[]
+  groupPosts           GroupPost[]
+  kycDocuments         KycDocument[]
+  hostedLives          Live[]                @relation("LiveHost")
+  manualDonations      ManualDonation[]
+  marketplaceProducts  MarketplaceProduct[]
+  purchases            MarketplacePurchase[] @relation("purchaseBuyer")
+  sales                MarketplacePurchase[] @relation("purchaseSeller")
+  receivedMessages     Message[]             @relation("Receiver")
+  sentMessages         Message[]             @relation("Sender")
+  notifications        Notification[]
+  participations       Participation[]
+  posts                Post[]
+  postLikes            PostLike[]
+  reports              Report[]              @relation("Reporter")
+  stories              Story[]
+  subscription         Subscription?
+  transactions         Transaction[]
+  kycValidatedBy       User?                 @relation("KycValidator", fields: [kycValidatedById], references: [id])
+  validatedKycs        User[]                @relation("KycValidator")
+  badges               UserBadge[]
+
+  @@index([firstName, lastName], map: "idx_user_name")
+}
+
+model Friendship {
+  id          String           @id @default(uuid())
+  requesterId String
+  addresseeId String
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  addressee   User             @relation("Addressee", fields: [addresseeId], references: [id])
+  requester   User             @relation("Requester", fields: [requesterId], references: [id])
+
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId, addresseeId], map: "idx_friendship_users")
+}
+
+model KycDocument {
+  id        String            @id @default(uuid())
+  userId    String
+  type      String
+  fileUrl   String
+  status    KycDocumentStatus @default(PENDING)
+  adminNote String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  user      User              @relation(fields: [userId], references: [id])
+}
+
+model Group {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  imageUrl    String?
+  creatorId   String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  creator     User          @relation("GroupCreator", fields: [creatorId], references: [id])
+  members     GroupMember[]
+  posts       GroupPost[]
+}
+
+model GroupMember {
+  id       String    @id @default(uuid())
+  groupId  String
+  userId   String
+  role     GroupRole @default(MEMBER)
+  joinedAt DateTime  @default(now())
+  group    Group     @relation(fields: [groupId], references: [id])
+  user     User      @relation(fields: [userId], references: [id])
+
+  @@unique([groupId, userId])
+  @@index([groupId, userId], map: "idx_group_member")
+}
+
+model GroupPost {
+  id        String   @id @default(uuid())
+  groupId   String
+  userId    String
+  content   String
+  mediaUrl  String?
+  createdAt DateTime @default(now())
+  group     Group    @relation(fields: [groupId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Live {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  roomId      String    @unique
+  hostId      String
+  status      String    @default("SCHEDULED")
+  createdAt   DateTime  @default(now())
+  endedAt     DateTime?
+  channelId   String?
+  host        User      @relation("LiveHost", fields: [hostId], references: [id])
+}
+
+model Subscription {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  expiresAt DateTime
+  autoRenew Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model PricingConfig {
+  id         String   @id @default(uuid())
+  featureKey String   @unique
+  amount     Float
+  active     Boolean  @default(true)
+  label      String
+  updatedAt  DateTime @updatedAt
+}
+
+model PremiumFeature {
+  id          String  @id @default(uuid())
+  featureKey  String  @unique
+  label       String
+  description String
+  active      Boolean @default(true)
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  amount    Float
+  status    String   @default("completed")
+  reference String
+  postId    String?
+  createdAt DateTime @default(now())
+  post      Post?    @relation(fields: [postId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)], map: "idx_transaction_user")
+}
+
+model Donation {
+  id         String   @id @default(uuid())
+  userId     String
+  amount     Float
+  currency   String   @default("XOF")
+  recurring  Boolean  @default(false)
+  paymentId  String   @unique
+  receiptUrl String?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)], map: "idx_donation_user")
+}
+
+model ManualDonation {
+  id          String               @id @default(uuid())
+  userId      String
+  amount      Float
+  network     String
+  phone       String?
+  status      ManualDonationStatus @default(PENDING)
+  adminNote   String?
+  createdAt   DateTime             @default(now())
+  validatedAt DateTime?
+  user        User                 @relation(fields: [userId], references: [id])
+}
+
+model Post {
+  id           String        @id @default(uuid())
+  userId       String
+  content      String
+  mediaUrl     String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  mediaType    String?
+  sharedPostId String?
+  comments     Comment[]
+  sharedPost   Post?         @relation("PostShares", fields: [sharedPostId], references: [id])
+  sharedBy     Post[]        @relation("PostShares")
+  user         User          @relation(fields: [userId], references: [id])
+  likes        PostLike[]
+  reports      Report[]
+  transactions Transaction[]
+
+  @@index([userId, createdAt(sort: Desc)], map: "idx_post_user_created")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+  reports   Report[]
+}
+
+model PostLike {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+}
+
+model Report {
+  id         String       @id @default(uuid())
+  reporterId String
+  postId     String?
+  commentId  String?
+  reason     String
+  status     ReportStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+  comment    Comment?     @relation(fields: [commentId], references: [id])
+  post       Post?        @relation(fields: [postId], references: [id])
+  reporter   User         @relation("Reporter", fields: [reporterId], references: [id])
+}
+
+model Event {
+  id             String          @id @default(uuid())
+  title          String
+  description    String?
+  imageUrl       String?
+  startDate      DateTime
+  endDate        DateTime
+  location       String?
+  organizerId    String
+  spotActive     Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  mediaType      String?
+  checkIns       CheckIn[]
+  organizer      User            @relation("Organizer", fields: [organizerId], references: [id])
+  participations Participation[]
+
+  @@index([startDate], map: "idx_event_start")
+}
+
+model Participation {
+  id        String              @id @default(uuid())
+  eventId   String
+  userId    String
+  status    ParticipationStatus @default(REGISTERED)
+  createdAt DateTime            @default(now())
+  event     Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User                @relation(fields: [userId], references: [id])
+}
+
+model CheckIn {
+  id        String   @id @default(uuid())
+  eventId   String
+  userId    String
+  qrCode    String?
+  selfieUrl String?
+  createdAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([eventId, userId])
+}
+
+model Badge {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  description String
+  icon        String
+  condition   String
+  userBadges  UserBadge[]
+}
+
+model UserBadge {
+  id        String   @id @default(uuid())
+  userId    String
+  badgeId   String
+  awardedAt DateTime @default(now())
+  badge     Badge    @relation(fields: [badgeId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, badgeId])
+}
+
+model Challenge {
+  id           String   @id @default(uuid())
+  title        String
+  description  String
+  goalType     String
+  goalValue    Int
+  currentValue Int      @default(0)
+  startDate    DateTime
+  endDate      DateTime
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  content    String?
+  mediaUrl   String?
+  senderId   String
+  receiverId String?
+  groupId    String?
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  receiver   User?    @relation("Receiver", fields: [receiverId], references: [id])
+  sender     User     @relation("Sender", fields: [senderId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String
+  entityType String
+  entityId   String
+  adminId    String
+  details    String?
+  createdAt  DateTime @default(now())
+  admin      User     @relation(fields: [adminId], references: [id])
+
+  @@index([adminId, createdAt(sort: Desc)], map: "idx_audit_log_admin")
+}
+
+model MarketplaceProduct {
+  id          String                @id @default(uuid())
+  userId      String
+  title       String
+  description String
+  price       Float
+  currency    String                @default("XOF")
+  category    String
+  images      String[]              @default([])
+  location    String?
+  condition   String?               @default("new")
+  status      String                @default("active")
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchases   MarketplacePurchase[]
+
+  @@index([category, status], map: "idx_marketplace_category")
+}
+
+model MarketplacePurchase {
+  id         String             @id @default(uuid())
+  productId  String
+  buyerId    String
+  sellerId   String
+  amount     Float
+  createdAt  DateTime           @default(now())
+  paymentId  String
+  commission Float              @default(0)
+  buyer      User               @relation("purchaseBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  product    MarketplaceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  seller     User               @relation("purchaseSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+}
+
+model Story {
+  id        String   @id @default(uuid())
+  userId    String
+  mediaUrl  String
+  mediaType String   @default("image")
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([expiresAt], map: "idx_story_expires")
+}
+
+model Call {
+  id         String    @id @default(uuid())
+  callerId   String
+  receiverId String
+  status     String    @default("missed")
+  startedAt  DateTime?
+  endedAt    DateTime?
+  createdAt  DateTime  @default(now())
+  caller     User      @relation("Caller", fields: [callerId], references: [id])
+  receiver   User      @relation("Receiver", fields: [receiverId], references: [id])
+
+  @@index([callerId, receiverId], map: "idx_call_participants")
+}
+
+model FamilyRelation {
+  id         String   @id @default(uuid())
+  fromUserId String
+  toUserId   String
+  relation   String
+  createdAt  DateTime @default(now())
+  fromUser   User     @relation("FromUser", fields: [fromUserId], references: [id])
+  toUser     User     @relation("ToUser", fields: [toUserId], references: [id])
+
+  @@unique([fromUserId, toUserId, relation])
+  @@index([fromUserId, toUserId], map: "idx_family_relations")
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum KycLevel {
+  NONE
+  PHONE
+  ID_VERIFIED
+  AMBASSADOR
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+enum KycDocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum GroupRole {
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum ManualDonationStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
+enum ParticipationStatus {
+  REGISTERED
+  PRESENT
+  ABSENT
+  EXCUSED
+}

@@ -1,7 +1,7 @@
 "use client";
-import { motion } from "framer-motion";
+import { forwardRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Download, MapPin, Calendar, Home, Phone, Briefcase } from "lucide-react";
+import { Download, MapPin, Calendar, Phone, Briefcase } from "lucide-react";
 
 interface MemberCardProps {
   user: {
@@ -27,15 +27,16 @@ interface MemberCardProps {
   siblings?: { firstName: string; lastName: string }[];
 }
 
-export function MemberCard({ user, parents = [], siblings = [] }: MemberCardProps) {
+export const MemberCard = forwardRef<HTMLDivElement, MemberCardProps>(function MemberCard(
+  { user, parents = [], siblings = [] },
+  ref
+) {
   const memberNumber = user.id ? `RMB-${user.id.slice(0, 8).toUpperCase()}` : "RMB-00000000";
 
   return (
-    <motion.div
-      initial={{ scale: 0.95, opacity: 0, rotateY: 10 }}
-      animate={{ scale: 1, opacity: 1, rotateY: 0 }}
-      transition={{ type: "spring", stiffness: 100 }}
-      className="relative w-full max-w-md mx-auto rounded-[var(--radius-card)] bg-white border border-border p-6 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] transition-shadow group overflow-hidden"
+    <div
+      ref={ref}
+      className="card-premium relative w-full max-w-md mx-auto p-6 overflow-hidden group"
     >
       {/* Motif bété en filigrane */}
       <div
@@ -99,8 +100,8 @@ export function MemberCard({ user, parents = [], siblings = [] }: MemberCardProp
         </div>
 
         <div className="flex flex-col items-end gap-2 ml-2">
-          <div className="bg-white p-2 rounded-lg border border-border">
-            <QRCodeSVG value={`https://rmb-asso.org/member/${user.id}`} size={60} level="L" />
+          <div className="bg-white dark:bg-gray-100 p-2 rounded-lg border border-border">
+            <QRCodeSVG value={user.id} size={60} level="L" />
           </div>
           <button className="text-text-secondary hover:text-primary transition-colors">
             <Download size={16} />
@@ -109,6 +110,6 @@ export function MemberCard({ user, parents = [], siblings = [] }: MemberCardProp
       </div>
 
       <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
-    </motion.div>
+    </div>
   );
-}
+});

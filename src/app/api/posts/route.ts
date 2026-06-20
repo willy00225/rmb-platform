@@ -1,49 +1,44 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { sendPushNotification } from "@/lib/onesignal";
-import { updateChallenges } from "@/lib/challenges";
-import { checkAndAwardBadges } from "@/lib/badges";
-import { addXp } from "@/lib/xp";
+import { isSpam, containsBlockedContent, isToxic } from "@/lib/moderation";
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   const posts = await prisma.post.findMany({
+    where: {
+      OR: [
+        { visible: true },
+        { userId: session.user.id },          // L'auteur voit ses posts masqués
+        // Optionnel : les admins pourraient tout voir (à ajouter si besoin)
+      ],
+    },
     include: {
-      user: { select: { firstName: true, lastName: true, avatar: true } },
+      user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
       comments: {
-        include: {
-          user: { select: { firstName: true, lastName: true, avatar: true } },
-        },
-        orderBy: { createdAt: 'asc' },
+        include: { user: { select: { id: true, firstName: true, lastName: true, avatar: true } } },
+        orderBy: { createdAt: "asc" },
       },
-      likes: {
-        select: { userId: true },
-      },
+      likes: { select: { userId: true } },
       sharedPost: {
         include: {
-          user: { select: { firstName: true, lastName: true, avatar: true } },
-          likes: { select: { userId: true } },
-          comments: {
-            include: {
-              user: { select: { firstName: true, lastName: true, avatar: true } },
-            },
-            orderBy: { createdAt: 'asc' },
-          },
-        },
-      },
-      sharedBy: {
-        include: {
-          user: { select: { firstName: true, lastName: true } },
+          user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
         },
       },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ isBoosted: "desc" }, { createdAt: "desc" }],
   });
 
-  return NextResponse.json(posts);
+  // Sérialisation des dates pour les composants clients
+  const serialized = posts.map(post => ({
+    ...post,
+    createdAt: post.createdAt.toISOString(),
+    comments: post.comments.map(c => ({ ...c, createdAt: c.createdAt.toISOString() })),
+  }));
+
+  return NextResponse.json(serialized);
 }
 
 export async function POST(req: Request) {
@@ -53,96 +48,59 @@ export async function POST(req: Request) {
   const { content, mediaUrl, mediaType, sharedPostId } = await req.json();
   if (!content && !mediaUrl) return NextResponse.json({ error: "Contenu ou média requis" }, { status: 400 });
 
+  // Vérifier si l'utilisateur est restreint
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+  if (user?.restrictedUntil && new Date() < user.restrictedUntil) {
+    return NextResponse.json({ error: "Vous êtes temporairement restreint de publication." }, { status: 403 });
+  }
+  if (user?.role === "SUSPENDED") {
+    return NextResponse.json({ error: "Compte suspendu." }, { status: 403 });
+  }
+
+  // Filtres automatiques sur le texte
+  if (content) {
+    const blocked = containsBlockedContent(content);
+    if (blocked) {
+      return NextResponse.json({ error: `Contenu non autorisé (mot interdit : "${blocked}"). Veuillez reformuler.` }, { status: 403 });
+    }
+    if (isSpam(content)) {
+      return NextResponse.json({ error: "Contenu détecté comme spam. Veuillez réduire la répétition." }, { status: 403 });
+    }
+    if (isToxic(content)) {
+      // Créer le post mais le masquer
+      const post = await prisma.post.create({
+        data: {
+          content,
+          mediaUrl,
+          mediaType,
+          sharedPostId,
+          userId: session.user.id,
+          visible: false,
+        },
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+        },
+      });
+      return NextResponse.json({ error: "Votre message a été placé en attente de modération.", post }, { status: 202 });
+    }
+  }
+
+  // Création normale
   const post = await prisma.post.create({
     data: {
       content,
       mediaUrl,
       mediaType,
-      sharedPostId: sharedPostId || null,
+      sharedPostId,
       userId: session.user.id,
+      visible: true,
     },
     include: {
-      user: { select: { firstName: true, lastName: true, avatar: true } },
-      comments: { include: { user: { select: { firstName: true, lastName: true, avatar: true } } } },
+      user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+      comments: { include: { user: { select: { id: true, firstName: true, lastName: true, avatar: true } } } },
       likes: { select: { userId: true } },
-      sharedPost: {
-        include: {
-          user: { select: { firstName: true, lastName: true, avatar: true } },
-          likes: { select: { userId: true } },
-          comments: { include: { user: { select: { firstName: true, lastName: true, avatar: true } } } },
-        },
-      },
     },
   });
 
-  // Progression, badges et XP
-  await updateChallenges("posts");
-  await checkAndAwardBadges(session.user.id);
-  await addXp(session.user.id, 10);
-
-  await sendPushNotification({
-    headings: { fr: "Nouveau post" },
-    contents: { fr: content || "Nouvelle publication" },
-  });
-
-  if (sharedPostId) {
-    const originalPost = await prisma.post.findUnique({
-      where: { id: sharedPostId },
-      select: { userId: true },
-    });
-    if (originalPost && originalPost.userId !== session.user.id) {
-      const sharer = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { firstName: true },
-      });
-      await sendPushNotification({
-        headings: { fr: "Votre publication a été partagée 🔁" },
-        contents: { fr: `${sharer?.firstName || "Quelqu’un"} a partagé votre publication.` },
-        includeExternalUserIds: [originalPost.userId],
-      });
-    }
-  }
-
   return NextResponse.json(post, { status: 201 });
-}
-
-export async function PATCH(req: Request) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-
-  const { postId, action } = await req.json();
-  if (!postId || !action || !["like", "unlike"].includes(action)) {
-    return NextResponse.json({ error: "Paramètres invalides" }, { status: 400 });
-  }
-
-  const userId = session.user.id;
-
-  if (action === "like") {
-    await prisma.postLike.upsert({
-      where: {
-        postId_userId: {
-          postId,
-          userId,
-        },
-      },
-      update: {},
-      create: {
-        postId,
-        userId,
-      },
-    });
-  } else {
-    await prisma.postLike.deleteMany({
-      where: {
-        postId,
-        userId,
-      },
-    });
-  }
-
-  const likeCount = await prisma.postLike.count({
-    where: { postId },
-  });
-
-  return NextResponse.json({ postId, likeCount, likedByUser: action === "like" });
 }

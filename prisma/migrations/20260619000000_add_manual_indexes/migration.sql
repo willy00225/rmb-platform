@@ -1,0 +1,11 @@
+CREATE INDEX IF NOT EXISTS idx_post_user_created ON "Post" ("userId", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS idx_story_expires ON "Story" ("expiresAt");
+CREATE INDEX IF NOT EXISTS idx_friendship_users ON "Friendship" ("requesterId", "addresseeId");
+CREATE INDEX IF NOT EXISTS idx_donation_user ON "Donation" ("userId", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS idx_transaction_user ON "Transaction" ("userId", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS idx_marketplace_category ON "MarketplaceProduct" ("category", "status");
+CREATE INDEX IF NOT EXISTS idx_family_relations ON "FamilyRelation" ("fromUserId", "toUserId");
+CREATE INDEX IF NOT EXISTS idx_call_participants ON "Call" ("callerId", "receiverId");
+CREATE INDEX IF NOT EXISTS idx_audit_log_admin ON "AuditLog" ("adminId", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS idx_group_member ON "GroupMember" ("groupId", "userId");
+CREATE INDEX IF NOT EXISTS idx_event_start ON "Event" ("startDate");

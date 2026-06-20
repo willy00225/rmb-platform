@@ -2,7 +2,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Users, DollarSign, MessageCircle, CalendarDays } from "lucide-react";
+import { Users, DollarSign, MessageCircle, CalendarDays, Radio, ScanLine } from "lucide-react";
 import Link from "next/link";
 import { AdminCharts } from "@/components/admin/AdminCharts";
 
@@ -141,6 +141,22 @@ export default async function AdminDashboardPage() {
         <Link href="/dashboard/admin/audit" className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-brand-500/30 transition">
           <h2 className="text-lg font-semibold text-white">Journal d'audit</h2>
           <p className="text-sm text-gray-400 mt-2">Historique de toutes les actions</p>
+        </Link>
+        {/* Lien Radio (ajouté précédemment) */}
+        <Link href="/dashboard/admin/radio" className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-brand-500/30 transition">
+          <div className="flex items-center gap-2">
+            <Radio size={20} className="text-brand-400" />
+            <h2 className="text-lg font-semibold text-white">Radio</h2>
+          </div>
+          <p className="text-sm text-gray-400 mt-2">Gérer le direct et les podcasts</p>
+        </Link>
+        {/* Lien Événements (check-in) */}
+        <Link href="/dashboard/admin/events" className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-brand-500/30 transition">
+          <div className="flex items-center gap-2">
+            <ScanLine size={20} className="text-brand-400" />
+            <h2 className="text-lg font-semibold text-white">Événements</h2>
+          </div>
+          <p className="text-sm text-gray-400 mt-2">Lister les événements et accéder au check-in</p>
         </Link>
       </div>
 

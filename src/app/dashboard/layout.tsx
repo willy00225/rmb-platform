@@ -15,18 +15,21 @@ import { ChatProvider } from "@/contexts/ChatContext";
 import {
   Menu, Bell, X, Newspaper, Users, User, LayoutDashboard,
   CalendarDays, Heart, Shield, Radio, Trophy, Settings,
-  HelpCircle, Store, GitBranch
+  HelpCircle, Store, GitBranch, Package, Sun, Moon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { SearchBar } from "@/components/search/SearchBar";
+import { useTheme } from "@/components/theme/ThemeProvider";
+import { DesktopHeader } from "@/components/dashboard/DesktopHeader";
+import { RightSidebar } from "@/components/dashboard/RightSidebar";
 
-// ─── MobileHeader (intégré ici) ─────────────────────────────────
-function MobileHeader() {
+// ─── MobileHeader (conservé à l'identique) ────
+function MobileHeaderInline() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { theme, toggleTheme } = useTheme();
 
-  // Notification non lues
   const { data: unreadData } = useQuery({
     queryKey: ["unreadNotifications"],
     queryFn: () => fetch("/api/notifications/unread-count").then(res => res.json()),
@@ -41,16 +44,18 @@ function MobileHeader() {
     { href: "/dashboard/groups", label: "Groupes", icon: Users },
     { href: "/dashboard/events", label: "Événements", icon: CalendarDays },
     { href: "/dashboard/live", label: "Lives", icon: Radio },
+    { href: "/dashboard/radio", label: "Radio", icon: Radio },
     { href: "/dashboard/donations", label: "Dons", icon: Heart },
     { href: "/dashboard/marketplace", label: "Marketplace", icon: Store },
+    { href: "/dashboard/orders", label: "Commandes", icon: Package },
     { href: "/dashboard/family", label: "Généalogie", icon: GitBranch },
     { href: "/dashboard/kyc", label: "Vérification", icon: Shield },
+    { href: "/dashboard/settings", label: "Paramètres", icon: Settings },
     { href: "/dashboard/profile", label: "Profil", icon: User },
     { href: "/dashboard/leaderboard", label: "Classement", icon: Trophy },
   ];
 
   const bottomLinks = [
-    { href: "/dashboard/settings", label: "Paramètres", icon: Settings },
     { href: "/dashboard/help", label: "Aide", icon: HelpCircle },
   ];
 
@@ -58,27 +63,43 @@ function MobileHeader() {
 
   return (
     <>
-      <header className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-b border-border/60 px-4 h-14 flex items-center justify-between">
+      <header className="md:hidden sticky top-0 z-50 bg-white/90 dark:bg-bkg/90 backdrop-blur-lg border-b border-border px-4 py-3 flex items-center justify-between">
         <Link href="/dashboard" className="flex items-center gap-2">
           <img src="/images/logo-rmb.png" alt="RMB" className="h-8 w-auto object-contain" />
         </Link>
+
         <div className="flex items-center gap-2">
-          <Link href="/dashboard/leaderboard" className="p-2 rounded-full hover:bg-gray-100 transition-colors text-text-secondary">
+          <button
+            onClick={toggleTheme}
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-white/10 text-text-secondary dark:text-text hover:bg-gray-200 dark:hover:bg-white/20 transition"
+          >
+            {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+
+          <Link
+            href="/dashboard/leaderboard"
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-white/10 text-text-secondary dark:text-text hover:bg-gray-200 dark:hover:bg-white/20 transition"
+          >
             <Trophy size={20} />
           </Link>
-          <button className="p-2 rounded-full hover:bg-gray-100 transition-colors text-text-secondary relative">
+
+          <Link
+            href="/dashboard/notifications"
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-white/10 text-text-secondary dark:text-text hover:bg-gray-200 dark:hover:bg-white/20 transition relative"
+          >
             <Bell size={20} />
             {unreadCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow">
                 {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}
-          </button>
+          </Link>
+
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary hover:bg-primary/20 dark:hover:bg-primary/30 transition"
           >
-            {isMenuOpen ? <X size={20} className="text-text" /> : <Menu size={20} className="text-text" />}
+            {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </header>
@@ -98,9 +119,9 @@ function MobileHeader() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="fixed top-0 left-0 z-50 w-[280px] h-full bg-white shadow-2xl pt-16 md:hidden overflow-y-auto"
+              className="fixed top-0 left-0 z-50 w-[280px] h-full bg-white dark:bg-surface shadow-2xl pt-16 md:hidden overflow-y-auto"
             >
-              <div className="px-6 py-4 border-b border-border/60">
+              <div className="px-6 py-4 border-b border-border">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg">U</div>
                   <div>
@@ -110,7 +131,6 @@ function MobileHeader() {
                 </div>
               </div>
 
-              {/* Barre de recherche dans le menu mobile */}
               <div className="px-4 py-3">
                 <SearchBar />
               </div>
@@ -122,7 +142,7 @@ function MobileHeader() {
                   return (
                     <Link key={link.href} href={link.href} onClick={() => setIsMenuOpen(false)}
                       className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                        active ? "bg-primary/10 text-primary" : "text-text-secondary hover:bg-gray-50 hover:text-text"
+                        active ? "bg-primary/10 text-primary" : "text-text-secondary hover:bg-gray-100 dark:hover:bg-white/5 hover:text-text"
                       }`}
                     >
                       <Icon size={20} className={active ? "text-primary" : "text-text-secondary"} />
@@ -133,12 +153,12 @@ function MobileHeader() {
                 })}
               </nav>
 
-              <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-border/60 bg-white/95">
+              <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-border bg-white dark:bg-surface">
                 {bottomLinks.map((link) => {
                   const Icon = link.icon;
                   return (
                     <Link key={link.href} href={link.href} onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-text-secondary hover:bg-gray-50 hover:text-text transition-all"
+                      className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-text-secondary hover:bg-gray-100 dark:hover:bg-white/5 hover:text-text transition-all"
                     >
                       <Icon size={20} className="text-text-secondary" />
                       {link.label}
@@ -164,19 +184,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <ChatProvider>
       <div className="min-h-screen bg-bkg overflow-x-hidden">
-        <Sidebar />
-        <div className="md:pl-64">
-          <MobileHeader />
+        {/* Barre supérieure desktop */}
+        <DesktopHeader />
 
-          <main className="pt-16 pb-24 md:pt-0 md:pb-0 min-h-screen">
-            <div className="max-w-5xl mx-auto px-4 py-4 md:px-8 md:py-6">
-              <StoriesBar onStoryClick={(userId) => setStoryUserId(userId)} />
-              {children}
+        {/* Sidebar gauche (sans bordure) */}
+        <Sidebar />
+
+        {/* Colonne centrale avec ombre flottante */}
+        <div className="md:pl-60 lg:pr-80">
+          <MobileHeaderInline />
+
+          <main className="pt-16 md:pt-14 pb-24 md:pb-0 min-h-screen">
+            <div className="max-w-3xl mx-auto px-4 py-4 md:px-8 md:py-6">
+              <div className="bg-white dark:bg-surface rounded-2xl shadow-2xl min-h-screen">
+                <StoriesBar onStoryClick={(userId) => setStoryUserId(userId)} />
+                {children}
+              </div>
             </div>
           </main>
 
           <MobileNav />
         </div>
+
+        {/* Colonne droite (sans bordure) */}
+        <RightSidebar />
 
         <FloatingChat session={session} />
         <SpotOverlay />

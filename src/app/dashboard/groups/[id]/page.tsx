@@ -64,12 +64,12 @@ export default async function GroupDetailPage({ params }: { params: { id: string
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-text">Publications du groupe</h2>
         {group.posts.length === 0 ? (
-          <div className="rounded-[var(--radius-card)] bg-white border border-border p-6 text-center text-text-secondary">
+          <div className="card-premium p-6 text-center text-text-secondary">
             Aucune publication pour le moment.
           </div>
         ) : (
           group.posts.map(post => (
-            <div key={post.id} className="rounded-[var(--radius-card)] bg-white border border-border p-4 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] transition-shadow">
+            <div key={post.id} className="card-premium p-4">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
                   {post.user.firstName[0]}{post.user.lastName[0]}

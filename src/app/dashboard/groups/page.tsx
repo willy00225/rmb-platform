@@ -46,7 +46,7 @@ export default function GroupsPage() {
     <div className="space-y-8 animate-fadeInUp pb-24 md:pb-0">
       <h1 className="text-3xl font-display font-bold text-text">Groupes / Causeries</h1>
 
-      <div className="p-6 rounded-[var(--radius-card)] bg-white border border-border shadow-[var(--shadow-card)]">
+      <div className="card-premium p-6">
         <h2 className="text-lg font-semibold text-text mb-4">Créer un groupe</h2>
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <input
@@ -54,14 +54,14 @@ export default function GroupsPage() {
             placeholder="Nom du groupe"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            className="flex-1 px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:outline-none focus:border-primary"
+            className="flex-1 px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:outline-none focus:border-primary"
           />
           <input
             type="text"
             placeholder="Description"
             value={newDesc}
             onChange={(e) => setNewDesc(e.target.value)}
-            className="flex-1 px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:outline-none focus:border-primary"
+            className="flex-1 px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:outline-none focus:border-primary"
           />
           <Button
             onClick={handleCreate}
@@ -80,7 +80,7 @@ export default function GroupsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {groups.map((group: any) => (
             <Link key={group.id} href={`/dashboard/groups/${group.id}`}>
-              <div className="p-6 rounded-[var(--radius-card)] bg-white border border-border shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] transition-shadow cursor-pointer h-full">
+              <div className="card-premium p-6 h-full cursor-pointer">
                 <h3 className="text-lg font-semibold text-text break-words">{group.name}</h3>
                 <p className="text-sm text-text-secondary mt-2 line-clamp-2">
                   {group.description || "Aucune description"}

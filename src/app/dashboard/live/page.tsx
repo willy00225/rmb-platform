@@ -47,7 +47,7 @@ export default function LiveListPage() {
     <div className="space-y-8 animate-fadeInUp">
       <h1 className="text-3xl font-display font-bold text-text">Lives</h1>
 
-      <div className="p-6 rounded-[var(--radius-card)] bg-white border border-border shadow-[var(--shadow-card)]">
+      <div className="card-premium p-6">
         <h2 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
           <Radio size={20} className="text-primary" /> Lancer un direct
         </h2>
@@ -57,14 +57,14 @@ export default function LiveListPage() {
             placeholder="Titre du live"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:outline-none focus:border-primary"
+            className="px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:outline-none focus:border-primary"
           />
           <input
             type="text"
             placeholder="Description (optionnelle)"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:outline-none focus:border-primary"
+            className="px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:outline-none focus:border-primary"
           />
         </div>
         <Button
@@ -77,7 +77,7 @@ export default function LiveListPage() {
         </Button>
       </div>
 
-      <div className="rounded-[var(--radius-card)] bg-white border border-border shadow-[var(--shadow-card)] p-6">
+      <div className="card-premium p-6">
         <h2 className="text-lg font-semibold text-text mb-4">Lives en cours</h2>
         {isLoading ? (
           <Loader2 className="animate-spin text-primary mx-auto" size={24} />
@@ -87,7 +87,7 @@ export default function LiveListPage() {
           <div className="space-y-3">
             {lives.map((live: any) => (
               <Link key={live.id} href={`/dashboard/live/${live.id}`}>
-                <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition border border-border dark:border-white/10">
                   <div>
                     <p className="text-text font-medium">{live.title}</p>
                     <p className="text-sm text-text-secondary">Par {live.host?.firstName} {live.host?.lastName}</p>

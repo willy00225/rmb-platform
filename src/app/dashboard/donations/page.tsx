@@ -101,7 +101,7 @@ export default function DonationsPage() {
       <h1 className="text-3xl font-display font-bold text-text">Dons</h1>
 
       {/* Total */}
-      <div className="p-6 rounded-[var(--radius-card)] bg-white border border-border shadow-[var(--shadow-card)] flex items-center gap-4">
+      <div className="card-premium p-6 flex items-center gap-4">
         <Heart className="text-secondary" size={28} />
         <div>
           <p className="text-sm text-text-secondary">Total de mes dons</p>
@@ -112,7 +112,7 @@ export default function DonationsPage() {
       {/* Options de don */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* CinetPay */}
-        <div className="p-6 rounded-[var(--radius-card)] bg-white border border-border shadow-[var(--shadow-card)]">
+        <div className="card-premium p-6">
           <h2 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
             <CreditCard size={20} className="text-primary" /> Paiement sécurisé
           </h2>
@@ -126,7 +126,7 @@ export default function DonationsPage() {
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(Number(e.target.value))}
-                className="w-40 px-4 py-2 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:outline-none focus:border-primary"
+                className="w-40 px-4 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:outline-none focus:border-primary"
                 min={500}
                 step={100}
               />
@@ -143,24 +143,28 @@ export default function DonationsPage() {
         </div>
 
         {/* Mobile Money */}
-        <div className="p-6 rounded-[var(--radius-card)] bg-white border border-border shadow-[var(--shadow-card)]">
+        <div className="card-premium p-6">
           <h2 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
             <Smartphone size={20} className="text-primary" /> Mobile Money direct
           </h2>
           <p className="text-sm text-text-secondary mb-4">
             Envoyez votre don au numéro ci-dessous, puis déclarez-le.
           </p>
-          <div className="grid grid-cols-3 gap-2 mb-4 text-center">
-            <div className="p-2 rounded-lg bg-orange-50 border border-orange-200">
-              <p className="text-orange-600 text-xs font-bold">Orange</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 text-center">
+            <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20">
+              <p className="text-orange-600 dark:text-orange-400 text-xs font-bold">Orange</p>
               <p className="text-text text-sm">07 00 00 00 00</p>
             </div>
-            <div className="p-2 rounded-lg bg-yellow-50 border border-yellow-200">
-              <p className="text-yellow-600 text-xs font-bold">MTN</p>
+            <div className="p-2 rounded-lg bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20">
+              <p className="text-yellow-600 dark:text-yellow-400 text-xs font-bold">MTN</p>
               <p className="text-text text-sm">05 00 00 00 00</p>
             </div>
-            <div className="p-2 rounded-lg bg-blue-50 border border-blue-200">
-              <p className="text-blue-600 text-xs font-bold">Moov</p>
+            <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20">
+              <p className="text-blue-600 dark:text-blue-400 text-xs font-bold">Moov</p>
+              <p className="text-text text-sm">01 00 00 00 00</p>
+            </div>
+            <div className="p-2 rounded-lg bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-200 dark:border-cyan-500/20">
+              <p className="text-cyan-600 dark:text-cyan-400 text-xs font-bold">Wave</p>
               <p className="text-text text-sm">01 00 00 00 00</p>
             </div>
           </div>
@@ -170,11 +174,12 @@ export default function DonationsPage() {
               <select
                 value={mobileNetwork}
                 onChange={(e) => setMobileNetwork(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-gray-50 border border-border text-text text-sm"
+                className="px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text text-sm"
               >
                 <option value="orange">Orange Money</option>
                 <option value="mtn">MTN Mobile Money</option>
                 <option value="moov">Moov Money</option>
+                <option value="wave">Wave</option>
               </select>
             </div>
             <div>
@@ -183,7 +188,7 @@ export default function DonationsPage() {
                 type="number"
                 value={mobileAmount}
                 onChange={(e) => setMobileAmount(Number(e.target.value))}
-                className="w-32 px-3 py-2 rounded-xl bg-gray-50 border border-border text-text text-sm"
+                className="w-32 px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text text-sm"
                 min={500}
               />
             </div>
@@ -195,7 +200,7 @@ export default function DonationsPage() {
       </div>
 
       {/* Historique */}
-      <div className="rounded-[var(--radius-card)] bg-white border border-border shadow-[var(--shadow-card)] p-6">
+      <div className="card-premium p-6">
         <h2 className="text-lg font-semibold text-text mb-4">Historique des dons</h2>
         {isLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="animate-spin text-primary" size={24} /></div>
@@ -204,7 +209,7 @@ export default function DonationsPage() {
         ) : (
           <ul className="space-y-3">
             {donations.map((d: any, idx: number) => (
-              <li key={d.id || idx} className="flex justify-between items-center p-3 rounded-xl bg-gray-50 border border-border">
+              <li key={d.id || idx} className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10">
                 <div>
                   <span className="text-text-secondary text-sm">
                     {new Date(d.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}

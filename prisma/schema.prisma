@@ -14,6 +14,7 @@ model User {
   firstName            String
   lastName             String
   avatar               String?
+  coverImage           String?
   bio                  String?
   role                 Role                  @default(MEMBER)
   kycLevel             KycLevel              @default(NONE)
@@ -38,6 +39,10 @@ model User {
   fonction             String?
   boosts               Int                   @default(0)
   totalEarned          Float                 @default(0)
+  restrictedUntil      DateTime?
+  banReason            String?
+  resetToken           String?
+  resetTokenExpires    DateTime?
   auditLogs            AuditLog[]
   callsMade            Call[]                @relation("Caller")
   callsReceived        Call[]                @relation("Receiver")
@@ -62,6 +67,7 @@ model User {
   sentMessages         Message[]             @relation("Sender")
   notifications        Notification[]
   participations       Participation[]
+  podcasts             Podcast[]
   posts                Post[]
   postLikes            PostLike[]
   reports              Report[]              @relation("Reporter")
@@ -229,6 +235,10 @@ model Post {
   updatedAt    DateTime      @updatedAt
   mediaType    String?
   sharedPostId String?
+  visible      Boolean       @default(true)
+  isBoosted    Boolean       @default(false)
+  boostedUntil DateTime?
+  boostType    String?
   comments     Comment[]
   sharedPost   Post?         @relation("PostShares", fields: [sharedPostId], references: [id])
   sharedBy     Post[]        @relation("PostShares")
@@ -270,8 +280,8 @@ model Report {
   reason     String
   status     ReportStatus @default(PENDING)
   createdAt  DateTime     @default(now())
-  comment    Comment?     @relation(fields: [commentId], references: [id])
-  post       Post?        @relation(fields: [postId], references: [id])
+  comment    Comment?     @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  post       Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
   reporter   User         @relation("Reporter", fields: [reporterId], references: [id])
 }
 
@@ -461,6 +471,23 @@ model FamilyRelation {
   @@index([fromUserId, toUserId], map: "idx_family_relations")
 }
 
+model RadioConfig {
+  id           String  @id @default("main")
+  streamUrl    String?
+  onAir        Boolean @default(false)
+  currentShow  String?
+}
+
+model Podcast {
+  id        String   @id @default(uuid())
+  title     String
+  url       String
+  addedById String
+  createdAt DateTime @default(now())
+
+  addedBy   User     @relation(fields: [addedById], references: [id])
+}
+
 model Setting {
   key   String @id
   value String
@@ -471,6 +498,7 @@ enum Role {
   ADMIN
   MODERATOR
   MEMBER
+  SUSPENDED
 }
 
 enum KycLevel {

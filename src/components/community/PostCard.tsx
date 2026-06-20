@@ -6,7 +6,7 @@ import { UserName } from "@/components/ui/UserName";
 
 // Types
 interface UserBrief {
-  id: string; // ✅ Ajout de l'identifiant pour UserName
+  id: string;
   firstName: string;
   lastName: string;
   avatar?: string | null;
@@ -17,7 +17,7 @@ interface Comment {
   content: string;
   createdAt: string;
   user: UserBrief;
-  userId: string; // ✅ Pour passer à UserName
+  userId: string;
 }
 interface PostLike {
   userId: string;
@@ -29,14 +29,14 @@ interface Post {
   mediaType?: string | null;
   createdAt: string;
   user: UserBrief;
-  userId: string; // ✅ Pour passer à UserName
+  userId: string;
   comments: Comment[];
   likes: PostLike[];
   sharedPost?: Post | null;
   sharedBy?: { user: UserBrief }[];
 }
 
-// Composant Badge Premium
+// Badge Premium
 function PremiumBadge() {
   return (
     <span className="inline-flex items-center gap-1 ml-1.5 px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-[10px] font-medium border border-yellow-300">
@@ -93,11 +93,11 @@ export function PostCard({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-[var(--radius-card)] bg-white border border-border shadow-[var(--shadow-card)] p-6"
+      className="card-premium p-6"
     >
       {/* Partagé ? */}
       {post.sharedPost && (
-        <div className="mb-4 p-3 rounded-xl bg-gray-50 border border-border">
+        <div className="mb-4 p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10">
           <div className="flex items-center gap-2 text-xs text-text-secondary mb-2">
             <Share2 size={14} />
             <span>
@@ -185,7 +185,7 @@ export function PostCard({
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-6 border-t border-border pt-4">
+      <div className="flex items-center gap-6 border-t border-border dark:border-white/10 pt-4">
         <button
           onClick={handleLike}
           className={`flex items-center gap-2 text-sm ${
@@ -218,9 +218,9 @@ export function PostCard({
           {comments.map((comment) => (
             <div
               key={comment.id}
-              className="flex items-start gap-3 pl-4 border-l-2 border-border"
+              className="flex items-start gap-3 pl-4 border-l-2 border-border dark:border-white/10"
             >
-              <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-text-secondary">
+              <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-text-secondary">
                 <User size={12} />
               </div>
               <div>
@@ -250,7 +250,7 @@ export function PostCard({
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="Écrire un commentaire..."
               rows={1}
-              className="flex-1 resize-none rounded-xl bg-gray-50 border border-border px-3 py-2 text-sm text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
+              className="flex-1 resize-none rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 px-3 py-2 text-sm text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
             />
             <button
               onClick={handleAddComment}

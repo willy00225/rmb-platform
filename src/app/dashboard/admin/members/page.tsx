@@ -1,7 +1,7 @@
 "use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
-import { Loader2, Shield, UserX, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, Clock, Ban, Unlock } from "lucide-react";
 import toast from "react-hot-toast";
 import { UserName } from "@/components/ui/UserName";
 
@@ -9,124 +9,84 @@ export default function AdminMembersPage() {
   const queryClient = useQueryClient();
 
   const { data: members = [], isLoading } = useQuery({
-    queryKey: ["adminMembers"],
+    queryKey: ["admin-members"],
     queryFn: () => fetch("/api/admin/members").then(res => res.json()),
   });
 
-  const updateRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      const res = await fetch(`/api/admin/users/${userId}`, {
+  const restrictMutation = useMutation({
+    mutationFn: ({ userId, action, reason, duration }: any) =>
+      fetch(`/api/admin/users/${userId}/restrict`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role }),
-      });
-      if (!res.ok) throw new Error("Erreur");
-      return { userId, role };
+        body: JSON.stringify({ action, reason, duration }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+      toast.success("Action effectuée.");
     },
-    onSuccess: ({ userId, role }) => {
-      toast.success("Rôle mis à jour");
-      queryClient.setQueryData(["adminMembers"], (old: any[]) =>
-        old?.map(m => (m.id === userId ? { ...m, role } : m))
-      );
-    },
-    onError: () => toast.error("Erreur lors de la mise à jour du rôle"),
   });
 
-  const updateKycMutation = useMutation({
-    mutationFn: async ({ userId, kycLevel }: { userId: string; kycLevel: string }) => {
-      const res = await fetch(`/api/admin/users/${userId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kycLevel }),
-      });
-      if (!res.ok) throw new Error("Erreur");
-      return { userId, kycLevel };
-    },
-    onSuccess: ({ userId, kycLevel }) => {
-      toast.success("KYC mis à jour");
-      queryClient.setQueryData(["adminMembers"], (old: any[]) =>
-        old?.map(m => (m.id === userId ? { ...m, kycLevel } : m))
-      );
-    },
-    onError: () => toast.error("Erreur lors de la mise à jour du KYC"),
-  });
+  const handleRestrict = (userId: string) => {
+    const reason = prompt("Raison de la restriction :");
+    if (!reason) return;
+    const duration = prompt("Durée en jours (7 par défaut) :", "7");
+    restrictMutation.mutate({ userId, action: "restrict", reason, duration: parseInt(duration || "7") });
+  };
 
-  if (isLoading) return <Loader2 className="animate-spin text-brand-500 mx-auto mt-10" size={32} />;
+  const handleBan = (userId: string) => {
+    const reason = prompt("Raison du bannissement :");
+    if (!reason) return;
+    if (confirm("Confirmer le bannissement ?")) {
+      restrictMutation.mutate({ userId, action: "ban", reason });
+    }
+  };
+
+  const handleUnrestrict = (userId: string) => {
+    restrictMutation.mutate({ userId, action: "unrestrict" });
+  };
+
+  if (isLoading) return <Loader2 className="animate-spin text-primary mx-auto mt-10" size={32} />;
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-3xl font-display font-bold text-white">Gestion des membres</h1>
+    <div className="space-y-8 animate-fadeInUp">
+      <h1 className="text-3xl font-display font-bold text-text">Gestion des membres</h1>
 
-      <div className="rounded-2xl bg-white/5 border border-white/10 overflow-x-auto">
+      <div className="rounded-2xl bg-white dark:bg-surface border border-border overflow-x-auto">
         <table className="min-w-full">
           <thead>
-            <tr className="border-b border-white/10">
-              <th className="p-4 text-left text-sm font-medium text-gray-400">Nom</th>
-              <th className="p-4 text-left text-sm font-medium text-gray-400">Email</th>
-              <th className="p-4 text-left text-sm font-medium text-gray-400">Rôle</th>
-              <th className="p-4 text-left text-sm font-medium text-gray-400">KYC</th>
-              <th className="p-4 text-left text-sm font-medium text-gray-400">Niv.</th>
-              <th className="p-4 text-left text-sm font-medium text-gray-400">Dons</th>
-              <th className="p-4 text-left text-sm font-medium text-gray-400">Inscrit le</th>
-              <th className="p-4 text-left text-sm font-medium text-gray-400">Actions</th>
+            <tr className="border-b border-border">
+              <th className="p-4 text-left text-sm font-medium text-text-secondary">Nom</th>
+              <th className="p-4 text-left text-sm font-medium text-text-secondary">Email</th>
+              <th className="p-4 text-left text-sm font-medium text-text-secondary">Rôle</th>
+              <th className="p-4 text-left text-sm font-medium text-text-secondary">KYC</th>
+              <th className="p-4 text-left text-sm font-medium text-text-secondary">Dons</th>
+              <th className="p-4 text-left text-sm font-medium text-text-secondary">Restriction</th>
+              <th className="p-4 text-left text-sm font-medium text-text-secondary">Actions</th>
             </tr>
           </thead>
           <tbody>
             {members.map((m: any) => (
-              <tr key={m.id} className="border-b border-white/5">
-                <td className="p-4 text-white">
+              <tr key={m.id} className="border-b border-border/50">
+                <td className="p-4 text-text">
                   <UserName userId={m.id} firstName={m.firstName} lastName={m.lastName} />
                 </td>
-                <td className="p-4 text-gray-300">{m.email}</td>
-                <td className="p-4 text-gray-300">
-                  <select
-                    value={m.role}
-                    onChange={(e) => updateRoleMutation.mutate({ userId: m.id, role: e.target.value })}
-                    className="px-2 py-1 rounded bg-white/10 border border-white/10 text-white text-sm"
-                  >
-                    <option value="MEMBER">Membre</option>
-                    <option value="MODERATOR">Modérateur</option>
-                    <option value="ADMIN">Admin</option>
-                    {m.role === "SUPER_ADMIN" && <option value="SUPER_ADMIN">Super Admin</option>}
-                  </select>
+                <td className="p-4 text-text-secondary">{m.email}</td>
+                <td className="p-4 text-text-secondary">{m.role}</td>
+                <td className="p-4 text-text-secondary">{m.kycLevel}</td>
+                <td className="p-4 text-text">{m.totalDonated?.toLocaleString()} FCFA</td>
+                <td className="p-4 text-text-secondary">
+                  {m.restrictedUntil ? `Jusqu'au ${new Date(m.restrictedUntil).toLocaleDateString()}` : "Aucune"}
                 </td>
-                <td className="p-4 text-gray-300">
-                  <select
-                    value={m.kycLevel}
-                    onChange={(e) => updateKycMutation.mutate({ userId: m.id, kycLevel: e.target.value })}
-                    className="px-2 py-1 rounded bg-white/10 border border-white/10 text-white text-sm"
-                  >
-                    <option value="NONE">Aucun</option>
-                    <option value="PHONE">Téléphone</option>
-                    <option value="ID_VERIFIED">Pièce vérifiée</option>
-                    <option value="AMBASSADOR">Ambassadeur</option>
-                  </select>
-                </td>
-                <td className="p-4 text-white">{m.level}</td>
-                <td className="p-4 text-white">{m.totalDonated.toLocaleString()} XOF</td>
-                <td className="p-4 text-gray-300">{new Date(m.createdAt).toLocaleDateString("fr-FR")}</td>
                 <td className="p-4">
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => updateRoleMutation.mutate({ userId: m.id, role: "SUSPENDED" })}
-                      className="text-red-400 hover:text-red-300"
-                      title="Suspendre"
-                    >
-                      <UserX size={16} />
+                    <button onClick={() => handleRestrict(m.id)} className="text-orange-400 hover:text-orange-300" title="Restreindre">
+                      <Clock size={16} />
                     </button>
-                    <button
-                      onClick={() => updateKycMutation.mutate({ userId: m.id, kycLevel: "ID_VERIFIED" })}
-                      className="text-green-400 hover:text-green-300"
-                      title="Valider KYC"
-                    >
-                      <CheckCircle size={16} />
+                    <button onClick={() => handleBan(m.id)} className="text-red-400 hover:text-red-300" title="Bannir">
+                      <Ban size={16} />
                     </button>
-                    <button
-                      onClick={() => updateKycMutation.mutate({ userId: m.id, kycLevel: "NONE" })}
-                      className="text-gray-400 hover:text-gray-300"
-                      title="Réinitialiser KYC"
-                    >
-                      <XCircle size={16} />
+                    <button onClick={() => handleUnrestrict(m.id)} className="text-green-400 hover:text-green-300" title="Libérer">
+                      <Unlock size={16} />
                     </button>
                   </div>
                 </td>

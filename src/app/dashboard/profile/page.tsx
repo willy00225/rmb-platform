@@ -1,10 +1,13 @@
+// src/app/dashboard/profile/page.tsx
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { MemberCard } from "@/components/dashboard/MemberCard";
 import { PostCard } from "@/components/community/PostCard";
-import { Users, MessageCircle, ThumbsUp } from "lucide-react";
+import { Users, MessageCircle, ThumbsUp, CalendarDays, Heart, TrendingUp } from "lucide-react";
 import { notFound } from "next/navigation";
-import { PreferencesSection } from "@/components/profile/PreferencesSection";
+import { ChallengeWidget } from "@/components/challenges/ChallengeWidget";
+import { LiveWidget } from "@/components/live/LiveWidget";
+import { RadioWidget } from "@/components/radio/RadioWidget";
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -15,25 +18,11 @@ export default async function ProfilePage() {
     include: {
       posts: {
         include: {
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              avatar: true,
-            },
-          },
+          user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
           likes: true,
           comments: {
             include: {
-              user: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  avatar: true,
-                },
-              },
+              user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
             },
           },
         },
@@ -53,7 +42,7 @@ export default async function ProfilePage() {
     },
   });
 
-  // Récupération directe des relations familiales (sans fetch API)
+  // Récupération des relations familiales
   const relations = await prisma.familyRelation.findMany({
     where: {
       OR: [{ fromUserId: user.id }, { toUserId: user.id }],
@@ -83,7 +72,6 @@ export default async function ProfilePage() {
 
   const familyData = { parents, children, spouses, siblings };
 
-  // Sérialisation des posts
   const serializedPosts = user.posts.map((post) => ({
     id: post.id,
     content: post.content,
@@ -139,14 +127,8 @@ export default async function ProfilePage() {
   return (
     <div className="space-y-8 animate-fadeInUp">
       {/* En-tête profil */}
-      <div className="relative rounded-[var(--radius-card)] bg-white border border-border p-8 overflow-hidden shadow-[var(--shadow-card)]">
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage: "url('/images/bg-pattern-bete.png')",
-            backgroundSize: "cover",
-          }}
-        />
+      <div className="relative card-premium p-8 overflow-hidden">
+        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "url('/images/bg-pattern-bete.png')", backgroundSize: "cover" }} />
         <div className="relative z-10 flex flex-col sm:flex-row items-center gap-6">
           {user.avatar ? (
             <img src={user.avatar} alt="Photo" className="w-24 h-24 rounded-full border-4 border-primary/30 object-cover" />
@@ -156,13 +138,9 @@ export default async function ProfilePage() {
             </div>
           )}
           <div className="text-center sm:text-left">
-            <h1 className="text-3xl font-display font-bold text-text">
-              {user.firstName} {user.lastName}
-            </h1>
+            <h1 className="text-3xl font-display font-bold text-text">{user.firstName} {user.lastName}</h1>
             <p className="text-text-secondary">{user.email}</p>
-            <p className="text-sm text-text-secondary mt-1">
-              Niveau {user.level} · {user.xp} XP · Membre depuis {user.createdAt.getFullYear()}
-            </p>
+            <p className="text-sm text-text-secondary mt-1">Niveau {user.level} · {user.xp} XP · Membre depuis {user.createdAt.getFullYear()}</p>
             <div className="flex flex-wrap gap-4 mt-3 justify-center sm:justify-start">
               <span className="flex items-center gap-1 text-text"><Users size={16} /> {friendsCount} amis</span>
               <span className="flex items-center gap-1 text-text"><MessageCircle size={16} /> {user._count.posts} publications</span>
@@ -179,11 +157,42 @@ export default async function ProfilePage() {
         siblings={familyData.siblings || []}
       />
 
-      {/* Préférences (thème) */}
-      <PreferencesSection />
+      {/* Widgets */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <RadioWidget />
+        <div className="card-premium relative p-6 rounded-[var(--radius-card)] hover:shadow-[var(--shadow-card-hover)] transition-shadow group">
+          <div className="absolute top-4 right-4 text-primary/20 group-hover:text-primary/40 transition-colors"><CalendarDays size={32} /></div>
+          <p className="text-sm text-text-secondary font-medium">Prochain événement</p>
+          <p className="text-2xl font-bold text-text mt-3">Aucun</p>
+          <p className="text-xs text-text-secondary mt-2">Restez à l'écoute</p>
+        </div>
+        <div className="card-premium relative p-6 rounded-[var(--radius-card)] hover:shadow-[var(--shadow-card-hover)] transition-shadow group">
+          <div className="absolute top-4 right-4 text-secondary/20 group-hover:text-secondary/40 transition-colors"><Heart size={32} /></div>
+          <p className="text-sm text-text-secondary font-medium">Total des dons</p>
+          <p className="text-2xl font-bold text-text mt-3">{user.totalDonated.toLocaleString()} <span className="text-sm font-normal text-text-secondary">XOF</span></p>
+        </div>
+        <div className="card-premium relative p-6 rounded-[var(--radius-card)] hover:shadow-[var(--shadow-card-hover)] transition-shadow group">
+          <div className="absolute top-4 right-4 text-primary/20 group-hover:text-primary/40 transition-colors"><TrendingUp size={32} /></div>
+          <p className="text-sm text-text-secondary font-medium">Niveau</p>
+          <div className="flex items-baseline gap-2 mt-3">
+            <span className="text-3xl font-bold text-primary">{user.level}</span>
+            <span className="text-lg text-text-secondary">·</span>
+            <span className="text-lg text-text-secondary">{user.xp} XP</span>
+          </div>
+          <div className="w-full h-1.5 bg-gray-100 dark:bg-white/10 rounded-full mt-2 overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-primary to-secondary transition-all" style={{ width: `${Math.min((user.xp % 1000) / 10, 100)}%` }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Défis et Lives */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <ChallengeWidget />
+        <LiveWidget />
+      </div>
 
       {/* Badges */}
-      <div className="rounded-[var(--radius-card)] bg-white border border-border shadow-[var(--shadow-card)] p-6">
+      <div className="card-premium p-6">
         <h2 className="text-xl font-semibold text-text mb-4">Badges</h2>
         {user.badges.length === 0 ? (
           <p className="text-text-secondary italic">Aucun badge pour le moment.</p>
@@ -202,7 +211,7 @@ export default async function ProfilePage() {
         )}
       </div>
 
-      {/* Publications */}
+      {/* Publications de l'utilisateur */}
       <div>
         <h2 className="text-xl font-semibold text-text mb-4">Publications</h2>
         {serializedPosts.length === 0 ? (

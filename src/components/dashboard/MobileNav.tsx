@@ -18,6 +18,7 @@ import {
   CalendarDays,
   Radio,
   FileText,
+  Store,
 } from "lucide-react";
 import { useState, useRef } from "react";
 import toast from "react-hot-toast";
@@ -35,9 +36,9 @@ export function MobileNav() {
 
   const navItems = [
     { href: "/dashboard", label: "Accueil", icon: Home },
-    { href: "/dashboard/events", label: "Événements", icon: CalendarDays },
     { href: "/dashboard/live", label: "Lives", icon: Radio },
-    { href: "/dashboard/donations", label: "Dons", icon: Heart },
+    { href: "/dashboard/groups", label: "Groupes", icon: Users },
+    { href: "/dashboard/marketplace", label: "Marketplace", icon: Store },
     { href: "/dashboard/profile", label: "Profil", icon: User },
   ];
 
@@ -100,11 +101,11 @@ export function MobileNav() {
   };
 
   const creationOptions = [
-    { type: "post", label: "Publication", icon: FileText, color: "text-blue-500", bg: "bg-blue-50", href: "#" },
-    { type: "live", label: "Live", icon: Radio, color: "text-red-500", bg: "bg-red-50", href: "/dashboard/live/create" },
-    { type: "event", label: "Événement", icon: CalendarDays, color: "text-green-500", bg: "bg-green-50", href: "/dashboard/events/create" },
-    { type: "group", label: "Groupe", icon: Users, color: "text-purple-500", bg: "bg-purple-50", href: "/dashboard/groups/create" },
-    { type: "donation", label: "Collecte de dons", icon: Heart, color: "text-pink-500", bg: "bg-pink-50", href: "/dashboard/donations/create" },
+    { type: "post", label: "Publication", icon: FileText, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-500/10", href: "#" },
+    { type: "live", label: "Live", icon: Radio, color: "text-red-500", bg: "bg-red-50 dark:bg-red-500/10", href: "/dashboard/live/create" },
+    { type: "event", label: "Événement", icon: CalendarDays, color: "text-green-500", bg: "bg-green-50 dark:bg-green-500/10", href: "/dashboard/events/create" },
+    { type: "group", label: "Groupe", icon: Users, color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-500/10", href: "/dashboard/groups/create" },
+    { type: "donation", label: "Collecte de dons", icon: Heart, color: "text-pink-500", bg: "bg-pink-50 dark:bg-pink-500/10", href: "/dashboard/donations/create" },
   ];
 
   const handleSelectOption = (option: typeof creationOptions[0]) => {
@@ -119,7 +120,7 @@ export function MobileNav() {
   return (
     <>
       {/* Barre de navigation inférieure */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-border/60 flex items-center justify-around h-16 px-1">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 dark:bg-bkg/90 backdrop-blur-xl border-t border-border dark:border-white/10 flex items-center justify-around h-16 px-1 safe-bottom">
         {navItems.slice(0, 2).map((item) => {
           const active = pathname === item.href;
           const Icon = item.icon;
@@ -140,12 +141,12 @@ export function MobileNav() {
                 <Icon
                   size={22}
                   className={`transition-all duration-300 ${
-                    active ? "text-primary" : "text-text-secondary"
+                    active ? "text-primary" : "text-text-secondary dark:text-gray-400"
                   }`}
                 />
                 <span
                   className={`text-[10px] font-medium mt-0.5 transition-all duration-300 ${
-                    active ? "text-primary" : "text-text-secondary"
+                    active ? "text-primary" : "text-text-secondary dark:text-gray-400"
                   }`}
                 >
                   {item.label}
@@ -163,7 +164,7 @@ export function MobileNav() {
           <div className="absolute -top-3 w-14 h-14 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30 hover:scale-105 transition-transform duration-300">
             <PlusCircle size={28} className="fill-white" />
           </div>
-          <span className="text-[10px] font-medium text-text-secondary mt-6">Créer</span>
+          <span className="text-[10px] font-medium text-text-secondary dark:text-gray-400 mt-6">Créer</span>
         </button>
 
         {navItems.slice(2).map((item) => {
@@ -186,12 +187,12 @@ export function MobileNav() {
                 <Icon
                   size={22}
                   className={`transition-all duration-300 ${
-                    active ? "text-primary" : "text-text-secondary"
+                    active ? "text-primary" : "text-text-secondary dark:text-gray-400"
                   }`}
                 />
                 <span
                   className={`text-[10px] font-medium mt-0.5 transition-all duration-300 ${
-                    active ? "text-primary" : "text-text-secondary"
+                    active ? "text-primary" : "text-text-secondary dark:text-gray-400"
                   }`}
                 >
                   {item.label}
@@ -209,7 +210,7 @@ export function MobileNav() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center p-4 sm:items-center"
+            className="fixed inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm z-[60] flex items-end justify-center p-4 sm:items-center"
             onClick={closeModal}
           >
             <motion.div
@@ -217,17 +218,16 @@ export function MobileNav() {
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: 50, opacity: 0, scale: 0.95 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 shadow-2xl"
+              className="bg-white dark:bg-surface rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               {selectedType === null ? (
-                // Écran de sélection du type de création
                 <>
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold text-text">Créer</h2>
                     <button
                       onClick={closeModal}
-                      className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                      className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                     >
                       <X size={24} className="text-text-secondary" />
                     </button>
@@ -241,7 +241,7 @@ export function MobileNav() {
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                           onClick={() => handleSelectOption(option)}
-                          className={`flex flex-col items-center justify-center p-6 rounded-2xl border border-border hover:border-primary/30 transition-all ${option.bg}`}
+                          className={`flex flex-col items-center justify-center p-6 rounded-2xl border border-border dark:border-white/10 hover:border-primary/30 dark:hover:border-primary/40 transition-all ${option.bg}`}
                         >
                           <Icon size={32} className={`${option.color} mb-2`} />
                           <span className="text-sm font-medium text-text">{option.label}</span>
@@ -254,13 +254,13 @@ export function MobileNav() {
                   </div>
                 </>
               ) : (
-                // Formulaire de publication (pour "post")
+                /* Formulaire de publication (pour "post") */
                 <>
                   <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-bold text-text">Nouvelle publication</h2>
                     <button
                       onClick={() => setSelectedType(null)}
-                      className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                      className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                     >
                       <X size={24} className="text-text-secondary" />
                     </button>
@@ -275,13 +275,13 @@ export function MobileNav() {
                         value={text}
                         onChange={(e) => setText(e.target.value)}
                         placeholder="Quoi de neuf ?"
-                        className="flex-1 h-28 p-3 rounded-xl border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none text-base"
+                        className="flex-1 h-28 p-3 rounded-xl border border-border dark:border-white/10 bg-gray-50 dark:bg-white/5 text-text placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none text-base"
                         autoFocus
                       />
                     </div>
 
                     {preview && (
-                      <div className="relative rounded-xl overflow-hidden border border-border">
+                      <div className="relative rounded-xl overflow-hidden border border-border dark:border-white/10">
                         <img src={preview} alt="Aperçu" className="w-full max-h-64 object-contain" />
                         <button
                           onClick={() => {
@@ -296,20 +296,20 @@ export function MobileNav() {
                       </div>
                     )}
 
-                    <div className="flex items-center gap-2 border-t border-border pt-3">
+                    <div className="flex items-center gap-2 border-t border-border dark:border-white/10 pt-3">
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                        className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                       >
                         <Image size={22} className="text-green-500" />
                       </button>
-                      <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                      <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                         <Video size={22} className="text-red-500" />
                       </button>
-                      <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                      <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                         <MapPin size={22} className="text-blue-500" />
                       </button>
-                      <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                      <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                         <Smile size={22} className="text-yellow-500" />
                       </button>
                       <input

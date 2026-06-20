@@ -20,7 +20,7 @@ export function EventCard({ event, onRegister }: { event: Event; onRegister?: ()
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-[var(--radius-card)] bg-white border border-border shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] transition-shadow p-6"
+      className="card-premium p-6"
     >
       {event.imageUrl && (
         <img src={event.imageUrl} alt={event.title} className="w-full h-40 object-cover rounded-xl mb-4" />
@@ -31,7 +31,7 @@ export function EventCard({ event, onRegister }: { event: Event; onRegister?: ()
         <span className="flex items-center gap-1"><CalendarDays size={14} /> {date.toLocaleDateString("fr-FR")} à {date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
         {event.location && <span className="flex items-center gap-1"><MapPin size={14} /> {event.location}</span>}
       </div>
-      <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+      <div className="flex items-center justify-between mt-4 pt-4 border-t border-border dark:border-white/10">
         <span className="flex items-center gap-1 text-sm text-text-secondary"><Users size={14} /> {event._count.participations} participant(s)</span>
         {onRegister && (
           <button onClick={onRegister} className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-hover transition">

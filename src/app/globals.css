@@ -8,7 +8,7 @@
   --color-accent: #2E7D32;
   --color-bkg: #FFFFFF;
   --color-surface: #F9FAFB;
-  --color-text: #1F2A22;
+  --color-text: #111827;
   --color-text-secondary: #4B5563;
   --color-border: #E5E7EB;
 
@@ -17,46 +17,77 @@
 
   --radius-card: 1rem;
   --radius-button: 0.75rem;
-  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-card-hover: 0 10px 25px rgba(0, 0, 0, 0.08), 0 4px 10px rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-card-hover: 0 10px 25px rgba(0,0,0,0.08), 0 4px 10px rgba(0,0,0,0.05);
 }
 
 :root {
   --color-bkg: #FFFFFF;
   --color-surface: #F9FAFB;
-  --color-text: #1F2A22;
+  --color-text: #111827;
   --color-text-secondary: #4B5563;
   --color-border: #E5E7EB;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-card-hover: 0 10px 25px rgba(0,0,0,0.08), 0 4px 10px rgba(0,0,0,0.05);
+  --shadow-button: 0 2px 8px rgba(0,0,0,0.08);
 }
 
 .dark {
-  --color-bkg: #0A0F0D;
-  --color-surface: #1A2420;      /* cartes et champs plus distincts */
-  --color-text: #F0F4F2;         /* texte principal très lumineux */
-  --color-text-secondary: #B0BDB6;/* texte secondaire bien lisible */
-  --color-border: #2D3A32;       /* bordures visibles */
+  --color-bkg: #0B1121;
+  --color-surface: #1E293B;
+  --color-text: #F1F5F9;
+  --color-text-secondary: #CBD5E1;
+  --color-border: #475569;
+  --shadow-card: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-card-hover: 0 12px 30px rgba(0,0,0,0.6);
+  --shadow-button: 0 4px 15px rgba(0,90,58,0.3);
 }
 
-/* Styles globaux pour les champs en mode sombre */
+/* Champs de formulaire en mode sombre */
 .dark input,
 .dark textarea,
 .dark select {
-  background-color: #1A2420;
-  border-color: #2D3A32;
-  color: #F0F4F2;
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
 }
-
 .dark input::placeholder,
 .dark textarea::placeholder {
-  color: #6B7A72;
+  color: var(--color-text-secondary);
+  opacity: 0.7;
 }
-
 .dark input:focus,
 .dark textarea:focus,
 .dark select:focus {
   border-color: var(--color-primary);
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(0, 90, 58, 0.3);
+  box-shadow: 0 0 0 2px rgba(0, 90, 58, 0.4);
+}
+
+/* Cartes premium avec ombres dynamiques */
+.card-premium {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s ease;
+}
+.card-premium:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-1px);
+}
+.dark .card-premium {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+.dark .card-premium p,
+.dark .card-premium span {
+  color: var(--color-text-secondary);
+}
+.dark .card-premium h1, 
+.dark .card-premium h2, 
+.dark .card-premium h3 {
+  color: var(--color-text);
 }
 
 body {

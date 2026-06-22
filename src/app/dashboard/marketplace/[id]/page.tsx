@@ -18,7 +18,6 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
 
   if (!product) notFound();
 
-  // ✅ Extraire les données nécessaires pour éviter les problèmes de null dans les closures
   const productId = product.id;
   const isOwner = product.userId === session.user.id;
   const isSold = product.purchases.length > 0;
@@ -44,7 +43,7 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
         <div className="space-y-4">
           {product.images && product.images.length > 0 ? (
             <>
-              <div className="rounded-2xl overflow-hidden border border-border bg-gray-50">
+              <div className="rounded-2xl overflow-hidden border border-border dark:border-white/10 bg-gray-50 dark:bg-white/5">
                 <img
                   src={product.images[0]}
                   alt={product.title}
@@ -54,7 +53,7 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
               {product.images.length > 1 && (
                 <div className="grid grid-cols-4 gap-2">
                   {product.images.slice(1).map((src, idx) => (
-                    <div key={idx} className="rounded-xl overflow-hidden border border-border bg-gray-50">
+                    <div key={idx} className="rounded-xl overflow-hidden border border-border dark:border-white/10 bg-gray-50 dark:bg-white/5">
                       <img src={src} alt={`${product.title} ${idx}`} className="w-full h-24 object-cover" />
                     </div>
                   ))}
@@ -62,7 +61,7 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
               )}
             </>
           ) : (
-            <div className="w-full h-96 bg-gray-100 rounded-2xl flex items-center justify-center text-text-secondary">
+            <div className="w-full h-96 bg-gray-100 dark:bg-white/5 rounded-2xl flex items-center justify-center text-text-secondary">
               <Tag size={48} />
             </div>
           )}
@@ -87,12 +86,12 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
             </span>
           </div>
 
-          <div className="border-t border-border pt-4">
+          <div className="border-t border-border dark:border-white/10 pt-4">
             <p className="text-text leading-relaxed whitespace-pre-wrap">{product.description}</p>
           </div>
 
           {/* Vendeur */}
-          <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 border border-border">
+          <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg overflow-hidden">
               {product.user.avatar ? (
                 <img src={product.user.avatar} alt={product.user.firstName} className="w-full h-full object-cover" />
@@ -108,11 +107,11 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
 
           {/* Actions */}
           {isOwner ? (
-            <div className="p-4 rounded-xl bg-gray-50 border border-border text-text-secondary text-center">
-              C'est votre annonce.
+            <div className="p-4 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text-secondary text-center">
+              C&apos;est votre annonce.
             </div>
           ) : isSold ? (
-            <div className="p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 text-center font-medium flex items-center justify-center gap-2">
+            <div className="p-4 rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-green-700 dark:text-green-400 text-center font-medium flex items-center justify-center gap-2">
               <CheckCircle size={20} /> Article vendu
             </div>
           ) : (

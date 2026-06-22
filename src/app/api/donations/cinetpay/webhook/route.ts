@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendPushNotification } from "@/lib/onesignal";
+import { sendEmail } from "@/lib/email";
+import { donationConfirmationEmail } from "@/emails/donationConfirmation";
 import { updateChallenges } from "@/lib/challenges";
 import { checkAndAwardBadges } from "@/lib/badges";
 import { addXp } from "@/lib/xp";
@@ -21,6 +23,14 @@ export async function POST(req: Request) {
     if (!userId) {
       return NextResponse.json({ error: "Utilisateur non identifié" }, { status: 400 });
     }
+
+    // ─── Configuration du site (logo, couleurs) ───
+    const siteConfigs = await prisma.siteConfig.findMany();
+    const configMap: Record<string, string> = {};
+    for (const cfg of siteConfigs) configMap[cfg.key] = cfg.value;
+    const logoUrl = configMap["site_logo"] || "https://rmb-asso.org/images/logo-rmb.png";
+    const primaryColor = configMap["site_primary_color"] || "#005A3A";
+    const secondaryColor = configMap["site_secondary_color"] || "#C99619";
 
     // ─── 1. Dons ───
     if (metadata.type === "donation" || !metadata.type) {
@@ -47,6 +57,19 @@ export async function POST(req: Request) {
         contents: { fr: `Votre don de ${amount} XOF a bien été reçu.` },
         includeExternalUserIds: [userId],
       });
+
+      // 📧 Email de confirmation de don
+      const donor = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, firstName: true },
+      });
+      if (donor?.email) {
+        await sendEmail({
+          to: donor.email,
+          subject: "Confirmation de don – RMB Connect",
+          html: donationConfirmationEmail(donor.firstName, amount, logoUrl, primaryColor, secondaryColor),
+        }).catch(err => console.error("Erreur envoi email don :", err));
+      }
     }
 
     // ─── 2. Abonnements ───
@@ -123,18 +146,15 @@ export async function POST(req: Request) {
 
       const sellerId = product.userId;
 
-      // Vérifier que le produit n'est pas déjà vendu
       const existingPurchase = await prisma.marketplacePurchase.findFirst({
         where: { productId },
       });
 
       if (!existingPurchase) {
-        // Commission de 5%
         const commissionRate = 0.05;
         const commission = amount * commissionRate;
         const netAmount = amount - commission;
 
-        // 1) Créer l'achat
         await prisma.marketplacePurchase.create({
           data: {
             productId,
@@ -142,17 +162,15 @@ export async function POST(req: Request) {
             sellerId,
             amount,
             paymentId: body.transaction_id,
-            commission, // champ à ajouter dans le modèle si ce n'est pas déjà fait
+            commission,
           },
         });
 
-        // 2) Créditer le vendeur du montant net (totalEarned à ajouter au modèle User)
         await prisma.user.update({
           where: { id: sellerId },
           data: { totalEarned: { increment: netAmount } },
         });
 
-        // 3) Enregistrer la transaction pour le vendeur
         await prisma.transaction.create({
           data: {
             userId: sellerId,
@@ -168,7 +186,6 @@ export async function POST(req: Request) {
           },
         });
 
-        // 4) Notifier le vendeur
         await sendPushNotification({
           headings: { fr: "Votre article a été vendu 🎉" },
           contents: {
@@ -177,7 +194,6 @@ export async function POST(req: Request) {
           includeExternalUserIds: [sellerId],
         });
 
-        // 5) Marquer le produit comme vendu
         await prisma.marketplaceProduct.update({
           where: { id: productId },
           data: { status: "sold" },

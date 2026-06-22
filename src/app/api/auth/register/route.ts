@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { sendEmail } from "@/lib/email";
+import { welcomeEmail } from "@/emails/welcome";
 
 export async function POST(req: Request) {
   try {
@@ -58,6 +60,26 @@ export async function POST(req: Request) {
         currentCountry: currentCountry || null,
       },
     });
+
+    // Envoyer l'email de bienvenue (ne pas bloquer la réponse en cas d'erreur)
+    try {
+      const siteConfigs = await prisma.siteConfig.findMany();
+      const configMap: Record<string, string> = {};
+      for (const cfg of siteConfigs) configMap[cfg.key] = cfg.value;
+
+      const logoUrl = configMap["site_logo"] || "https://rmb-asso.org/images/logo-rmb.png";
+      const primaryColor = configMap["site_primary_color"] || "#005A3A";
+      const secondaryColor = configMap["site_secondary_color"] || "#C99619";
+
+      await sendEmail({
+        to: user.email!,
+        subject: "Bienvenue sur RMB Connect",
+        html: welcomeEmail(user.firstName, logoUrl, primaryColor, secondaryColor),
+      });
+    } catch (emailError) {
+      console.error("Erreur envoi email de bienvenue :", emailError);
+      // Ne pas bloquer l'inscription si l'email échoue
+    }
 
     return NextResponse.json({ userId: user.id }, { status: 201 });
   } catch (error) {

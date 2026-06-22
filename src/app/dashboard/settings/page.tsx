@@ -93,7 +93,7 @@ export default function SettingsPage() {
     <div className="space-y-8 animate-fadeInUp max-w-lg mx-auto">
       <h1 className="text-3xl font-display font-bold text-text">Paramètres</h1>
 
-      <div className="rounded-2xl bg-white dark:bg-surface border border-border p-6 space-y-6">
+      <div className="card-premium p-6 space-y-6">
         {/* Photo de couverture */}
         <div>
           <h2 className="text-lg font-semibold text-text mb-4">Photo de couverture</h2>
@@ -132,24 +132,24 @@ export default function SettingsPage() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-sm text-text-secondary">Prénom</label>
-            <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border text-text" />
+            <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text" />
           </div>
           <div>
             <label className="text-sm text-text-secondary">Nom</label>
-            <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border text-text" />
+            <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text" />
           </div>
         </div>
         <div>
           <label className="text-sm text-text-secondary">Email</label>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border text-text" />
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text" />
         </div>
         <div>
           <label className="text-sm text-text-secondary">Téléphone</label>
-          <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border text-text" />
+          <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text" />
         </div>
         <div>
           <label className="text-sm text-text-secondary">Fonction / Profession</label>
-          <input type="text" value={fonction} onChange={e => setFonction(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border text-text" />
+          <input type="text" value={fonction} onChange={e => setFonction(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text" />
         </div>
 
         {/* Mot de passe */}
@@ -158,11 +158,11 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div>
               <label className="text-sm text-text-secondary">Mot de passe actuel</label>
-              <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border text-text" />
+              <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text" />
             </div>
             <div>
               <label className="text-sm text-text-secondary">Nouveau mot de passe</label>
-              <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border text-text" />
+              <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text" />
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { Loader2, Upload, X, MapPin, Tag, Image as ImageIcon } from "lucide-react";
+import { Loader2, Upload, X, MapPin, Tag } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function NewProductPage() {
@@ -28,10 +28,7 @@ export default function NewProductPage() {
 
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
-    setPreviews((prev) => {
-      const newPreviews = prev.filter((_, i) => i !== index);
-      return newPreviews;
-    });
+    setPreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,7 +70,9 @@ export default function NewProductPage() {
     <div className="space-y-8 animate-fadeInUp">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-display font-bold text-text">Vendre un article</h1>
-        <Button variant="ghost" onClick={() => router.back()}>Annuler</Button>
+        <Button variant="ghost" onClick={() => router.back()}>
+          Annuler
+        </Button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -85,7 +84,7 @@ export default function NewProductPage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Ex: Mobilier de salon en bois massif"
-            className="w-full px-4 py-3 rounded-xl bg-white border border-border text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
+            className="w-full px-4 py-3 rounded-xl bg-white dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
             required
           />
         </div>
@@ -98,7 +97,7 @@ export default function NewProductPage() {
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
             placeholder="Décrivez votre article en détail..."
-            className="w-full px-4 py-3 rounded-xl bg-white border border-border text-text placeholder-text-secondary focus:outline-none focus:border-primary transition resize-y"
+            className="w-full px-4 py-3 rounded-xl bg-white dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:outline-none focus:border-primary transition resize-y"
             required
           />
         </div>
@@ -112,7 +111,7 @@ export default function NewProductPage() {
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="0"
-              className="w-full px-4 py-3 rounded-xl bg-white border border-border text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
+              className="w-full px-4 py-3 rounded-xl bg-white dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
               required
             />
           </div>
@@ -121,7 +120,7 @@ export default function NewProductPage() {
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-white border border-border text-text focus:outline-none focus:border-primary transition"
+              className="w-full px-4 py-3 rounded-xl bg-white dark:bg-white/5 border border-border dark:border-white/10 text-text focus:outline-none focus:border-primary transition"
               required
             >
               <option value="">Sélectionner...</option>
@@ -147,7 +146,7 @@ export default function NewProductPage() {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="Ex: Abidjan, Cocody"
-              className="w-full pl-10 px-4 py-3 rounded-xl bg-white border border-border text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
+              className="w-full pl-10 px-4 py-3 rounded-xl bg-white dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
             />
           </div>
         </div>
@@ -156,7 +155,7 @@ export default function NewProductPage() {
         <div>
           <label className="block text-sm font-medium text-text mb-2">Images</label>
           <div
-            className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary transition"
+            className="border-2 border-dashed border-border dark:border-white/10 rounded-xl p-8 text-center cursor-pointer hover:border-primary transition bg-white dark:bg-white/5"
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload size={32} className="mx-auto text-text-secondary" />
@@ -173,7 +172,7 @@ export default function NewProductPage() {
           {previews.length > 0 && (
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
               {previews.map((src, index) => (
-                <div key={index} className="relative rounded-xl overflow-hidden border border-border">
+                <div key={index} className="relative rounded-xl overflow-hidden border border-border dark:border-white/10">
                   <img src={src} alt={`Aperçu ${index + 1}`} className="w-full h-32 object-cover" />
                   <button
                     type="button"

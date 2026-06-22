@@ -34,7 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className="font-sans antialiased bg-bkg text-text">
+      <body className="font-sans antialiased bg-bkg text-text overflow-x-hidden">
         <Providers>{children}</Providers>
       </body>
     </html>

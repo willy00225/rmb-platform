@@ -15,7 +15,8 @@ import { ChatProvider } from "@/contexts/ChatContext";
 import {
   Menu, Bell, X, Newspaper, Users, User, LayoutDashboard,
   CalendarDays, Heart, Shield, Radio, Trophy, Settings,
-  HelpCircle, Store, GitBranch, Package, Sun, Moon
+  HelpCircle, Store, GitBranch, Package, Sun, Moon,
+  AlertTriangle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -173,13 +174,52 @@ function MobileHeaderInline() {
     </>
   );
 }
+
+// ─── Bandeau d'avertissement KYC ──────────────────────────────
+function KycWarningBanner() {
+  return (
+    <div className="mb-6 p-4 rounded-xl bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 flex items-start gap-3">
+      <AlertTriangle size={20} className="text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+      <div>
+        <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">
+          Vérification d'identité requise
+        </p>
+        <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
+          Pour accéder à toutes les fonctionnalités, veuillez vérifier votre identité.
+        </p>
+        <Link
+          href="/dashboard/kyc"
+          className="inline-block mt-2 text-xs font-medium text-yellow-800 dark:text-yellow-300 underline hover:text-yellow-600 dark:hover:text-yellow-200"
+        >
+          Vérifier mon identité →
+        </Link>
+      </div>
+    </div>
+  );
+}
 // ───────────────────────────────────────────────────────────────
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const [storyUserId, setStoryUserId] = useState<string | null>(null);
+  const pathname = usePathname();
 
   if (!session) return null;
+
+  // 🔒 Vérification KYC
+  const kycLevel = session.user?.kycLevel;
+  const isKycVerified = kycLevel === "ID_VERIFIED" || kycLevel === "AMBASSADOR";
+  const isAdmin = session.user?.role === "ADMIN" || session.user?.role === "SUPER_ADMIN";
+
+  // Pages qui ne nécessitent pas de KYC complet
+  const exemptedPaths = [
+    "/dashboard/kyc",
+    "/dashboard/profile",
+    "/dashboard/settings",
+    "/dashboard/premium",
+  ];
+  const isExempted = exemptedPaths.some(p => pathname.startsWith(p)) || (pathname.startsWith("/dashboard/admin") && isAdmin);
+  const showKycBanner = !isKycVerified && !isExempted;
 
   return (
     <ChatProvider>
@@ -196,8 +236,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <main className="pt-16 md:pt-14 pb-24 md:pb-0 min-h-screen">
             <div className="max-w-3xl mx-auto px-4 py-4 md:px-8 md:py-6">
-              <div className="bg-white dark:bg-surface rounded-2xl shadow-2xl min-h-screen">
+              <div className="bg-white dark:bg-surface rounded-2xl shadow-2xl min-h-screen p-4 md:p-6">
                 <StoriesBar onStoryClick={(userId) => setStoryUserId(userId)} />
+
+                {/* Bandeau KYC */}
+                {showKycBanner && <KycWarningBanner />}
+
                 {children}
               </div>
             </div>

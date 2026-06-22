@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { motion } from "framer-motion";
-import { UserPlus, Eye, EyeOff } from "lucide-react";
+import { UserPlus, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
@@ -25,8 +25,22 @@ export default function RegisterPage() {
   const [fonction, setFonction] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Validations simples
+  const passwordStrength =
+    password.length >= 10 ? "Élevée" : password.length >= 8 ? "Moyenne" : "Faible";
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const canSubmit =
+    firstName.trim() &&
+    lastName.trim() &&
+    emailValid &&
+    password.length >= 8;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canSubmit) {
+      toast.error("Veuillez remplir correctement tous les champs obligatoires.");
+      return;
+    }
     setLoading(true);
 
     const res = await fetch("/api/auth/register", {
@@ -51,8 +65,8 @@ export default function RegisterPage() {
 
     setLoading(false);
     if (res.ok) {
-      toast.success("Compte créé avec succès !");
-      router.push("/auth/login");
+      toast.success("Compte créé avec succès ! Vérifiez votre identité pour continuer.");
+      router.push("/dashboard/kyc");
     } else {
       const data = await res.json();
       toast.error(data.error || "Erreur lors de l'inscription.");
@@ -84,7 +98,7 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <div className="bg-white border border-border rounded-3xl p-8 shadow-2xl">
+        <div className="card-premium p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Nom et prénom */}
             <div className="grid grid-cols-2 gap-4">
@@ -97,7 +111,7 @@ export default function RegisterPage() {
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   required
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
                   placeholder="Votre prénom"
                 />
               </div>
@@ -110,7 +124,7 @@ export default function RegisterPage() {
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   required
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
                   placeholder="Votre nom"
                 />
               </div>
@@ -126,9 +140,18 @@ export default function RegisterPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
+                className={`w-full px-4 py-3 rounded-xl border bg-gray-50 dark:bg-white/5 text-text placeholder-text-secondary focus:outline-none focus:ring-1 transition ${
+                  email && !emailValid
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                    : "border-border dark:border-white/10 focus:border-primary focus:ring-primary"
+                }`}
                 placeholder="vous@exemple.com"
               />
+              {email && !emailValid && (
+                <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                  <AlertTriangle size={12} /> Email invalide
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm text-text-secondary mb-2">
@@ -141,7 +164,11 @@ export default function RegisterPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={8}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition pr-12"
+                  className={`w-full px-4 py-3 rounded-xl border bg-gray-50 dark:bg-white/5 text-text placeholder-text-secondary focus:outline-none focus:ring-1 transition pr-12 ${
+                    password && password.length < 8
+                      ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                      : "border-border dark:border-white/10 focus:border-primary focus:ring-primary"
+                  }`}
                   placeholder="8 caractères minimum"
                 />
                 <button
@@ -152,6 +179,32 @@ export default function RegisterPage() {
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
+              {password && (
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex-1 h-1 rounded-full bg-gray-200 dark:bg-white/10">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        passwordStrength === "Élevée"
+                          ? "bg-green-500 w-full"
+                          : passwordStrength === "Moyenne"
+                          ? "bg-yellow-500 w-2/3"
+                          : "bg-red-500 w-1/3"
+                      }`}
+                    />
+                  </div>
+                  <span
+                    className={`text-xs ${
+                      passwordStrength === "Élevée"
+                        ? "text-green-500"
+                        : passwordStrength === "Moyenne"
+                        ? "text-yellow-500"
+                        : "text-red-500"
+                    }`}
+                  >
+                    {passwordStrength}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Date de naissance */}
@@ -163,7 +216,7 @@ export default function RegisterPage() {
                 type="date"
                 value={dateOfBirth}
                 onChange={(e) => setDateOfBirth(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
+                className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
               />
             </div>
 
@@ -177,7 +230,7 @@ export default function RegisterPage() {
                   type="text"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
                   placeholder="Ex : Gagnoa"
                 />
               </div>
@@ -189,7 +242,7 @@ export default function RegisterPage() {
                   type="text"
                   value={village}
                   onChange={(e) => setVillage(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
                   placeholder="Votre village"
                 />
               </div>
@@ -202,7 +255,7 @@ export default function RegisterPage() {
                 type="text"
                 value={canton}
                 onChange={(e) => setCanton(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
+                className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
                 placeholder="Canton"
               />
             </div>
@@ -217,7 +270,7 @@ export default function RegisterPage() {
                   type="text"
                   value={currentCity}
                   onChange={(e) => setCurrentCity(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
                   placeholder="Ex : Abidjan"
                 />
               </div>
@@ -229,7 +282,7 @@ export default function RegisterPage() {
                   type="text"
                   value={currentVillage}
                   onChange={(e) => setCurrentVillage(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
                   placeholder="Village actuel"
                 />
               </div>
@@ -242,7 +295,7 @@ export default function RegisterPage() {
                 type="text"
                 value={currentCountry}
                 onChange={(e) => setCurrentCountry(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
+                className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
                 placeholder="Ex : Côte d'Ivoire"
               />
             </div>
@@ -257,7 +310,7 @@ export default function RegisterPage() {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
                   placeholder="+225 07 00 00 00 00"
                 />
               </div>
@@ -269,7 +322,7 @@ export default function RegisterPage() {
                   type="text"
                   value={fonction}
                   onChange={(e) => setFonction(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
                   placeholder="Ex : Enseignant, Étudiant..."
                 />
               </div>
@@ -281,6 +334,7 @@ export default function RegisterPage() {
               size="lg"
               className="w-full"
               isLoading={loading}
+              disabled={!canSubmit}
             >
               <UserPlus size={18} />
               Créer mon compte

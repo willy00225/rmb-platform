@@ -29,19 +29,15 @@ export async function GET(req: Request) {
 
   for (const rel of relations) {
     if (rel.relation === "parent") {
-      // Si l'utilisateur est le "from", alors il a déclaré un parent (toUser)
       if (rel.fromUserId === targetUserId) {
         parents.push(rel.toUser);
       } else {
-        // L'utilisateur est le "to", donc il est l'enfant de fromUser
-        children.push(rel.fromUser); // en fait c'est l'inverse : si toUserId == targetUserId et relation parent, alors fromUser est son parent
         parents.push(rel.fromUser);
       }
     } else if (rel.relation === "child") {
       if (rel.fromUserId === targetUserId) {
         children.push(rel.toUser);
       } else {
-        // toUserId == targetUserId, alors fromUser est son enfant
         children.push(rel.fromUser);
       }
     } else if (rel.relation === "spouse") {
@@ -71,6 +67,18 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+
+  // ✅ Vérification KYC
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { kycLevel: true },
+  });
+  if (!user || (user.kycLevel !== "ID_VERIFIED" && user.kycLevel !== "AMBASSADOR")) {
+    return NextResponse.json(
+      { error: "Votre identité doit être vérifiée pour ajouter une relation familiale.", code: "KYC_REQUIRED" },
+      { status: 403 }
+    );
+  }
 
   const { toUserId, relation } = await req.json();
   if (!toUserId || !relation) return NextResponse.json({ error: "Destinataire et relation requis" }, { status: 400 });
@@ -107,7 +115,6 @@ export async function POST(req: Request) {
   else if (relation === "sibling") reciprocalRelation = "sibling";
 
   if (reciprocalRelation) {
-    // Vérifier si la réciproque n'existe pas déjà
     const existingReciprocal = await prisma.familyRelation.findFirst({
       where: {
         OR: [
@@ -134,6 +141,18 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+
+  // ✅ Vérification KYC
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { kycLevel: true },
+  });
+  if (!user || (user.kycLevel !== "ID_VERIFIED" && user.kycLevel !== "AMBASSADOR")) {
+    return NextResponse.json(
+      { error: "Votre identité doit être vérifiée pour modifier vos relations familiales.", code: "KYC_REQUIRED" },
+      { status: 403 }
+    );
+  }
 
   const { relationId } = await req.json();
   const rel = await prisma.familyRelation.findUnique({ where: { id: relationId } });

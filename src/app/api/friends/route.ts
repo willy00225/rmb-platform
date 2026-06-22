@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
-// GET : lister mes amis (acceptés)
+// GET : lister mes amis (acceptés) — pas de KYC requis
 export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
@@ -23,7 +23,6 @@ export async function GET(req: Request) {
     },
   });
 
-  // Transformer pour n'avoir qu'un seul "friend" par entrée
   const friends = friendships.map(f => {
     const isRequester = f.requesterId === session.user.id;
     return {
@@ -42,11 +41,22 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
+  // ✅ Vérification KYC
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { kycLevel: true },
+  });
+  if (!user || (user.kycLevel !== "ID_VERIFIED" && user.kycLevel !== "AMBASSADOR")) {
+    return NextResponse.json(
+      { error: "Votre identité doit être vérifiée pour envoyer une invitation.", code: "KYC_REQUIRED" },
+      { status: 403 }
+    );
+  }
+
   const { addresseeId } = await req.json();
   if (!addresseeId) return NextResponse.json({ error: "Destinataire requis" }, { status: 400 });
   if (addresseeId === session.user.id) return NextResponse.json({ error: "Vous ne pouvez pas vous ajouter vous-même" }, { status: 400 });
 
-  // Vérifier si déjà existant
   const existing = await prisma.friendship.findFirst({
     where: {
       OR: [

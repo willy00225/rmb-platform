@@ -14,15 +14,22 @@ export default function LeaderboardPage() {
       {isLoading ? (
         <Loader2 className="animate-spin text-primary mx-auto mt-10" size={32} />
       ) : (
-        <div className="rounded-2xl bg-white border border-border overflow-hidden">
+        <div className="card-premium overflow-hidden !p-0">
           {members.map((m: any, idx: number) => (
-            <div key={m.id} className="flex items-center gap-4 p-4 border-b border-border last:border-0">
+            <div
+              key={m.id}
+              className="flex items-center gap-4 p-4 border-b border-border dark:border-white/10 last:border-0"
+            >
               <span className="text-2xl font-bold text-primary w-8">
                 {idx + 1 <= 3 ? (
                   <Medal
                     size={24}
                     className={
-                      idx === 0 ? "text-yellow-500" : idx === 1 ? "text-gray-400" : "text-amber-600"
+                      idx === 0
+                        ? "text-yellow-500"
+                        : idx === 1
+                        ? "text-gray-400"
+                        : "text-amber-600"
                     }
                   />
                 ) : (
@@ -30,8 +37,12 @@ export default function LeaderboardPage() {
                 )}
               </span>
               <div className="flex-1">
-                <p className="text-text font-medium">{m.firstName} {m.lastName}</p>
-                <p className="text-sm text-text-secondary">Niv. {m.level} · {m.xp} XP</p>
+                <p className="text-text font-medium">
+                  {m.firstName} {m.lastName}
+                </p>
+                <p className="text-sm text-text-secondary">
+                  Niv. {m.level} · {m.xp} XP
+                </p>
               </div>
             </div>
           ))}

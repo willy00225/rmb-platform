@@ -1,4 +1,3 @@
-// src/app/api/marketplace/route.ts
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -48,6 +47,18 @@ export async function POST(req: Request) {
   }
 
   try {
+    // ✅ Vérification KYC
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { kycLevel: true },
+    });
+    if (!user || (user.kycLevel !== "ID_VERIFIED" && user.kycLevel !== "AMBASSADOR")) {
+      return NextResponse.json(
+        { error: "Votre identité doit être vérifiée pour publier une annonce.", code: "KYC_REQUIRED" },
+        { status: 403 }
+      );
+    }
+
     const { title, description, price, category, images, location, condition } = await req.json();
     if (!title || !price) {
       return NextResponse.json({ error: "Titre et prix requis" }, { status: 400 });

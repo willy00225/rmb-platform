@@ -9,8 +9,23 @@ export async function POST(req: Request) {
   }
 
   try {
+    // ✅ Vérification KYC avant tout achat de boost
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { kycLevel: true },
+    });
+    if (!user || (user.kycLevel !== "ID_VERIFIED" && user.kycLevel !== "AMBASSADOR")) {
+      return NextResponse.json(
+        {
+          error: "Votre identité doit être vérifiée avant d'acheter des boosts.",
+          code: "KYC_REQUIRED",
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
-    const { boostType } = body; // par exemple "single", "pack5", "pack10" – à définir selon vos besoins
+    const { boostType } = body; // ex: "single", "pack5", "pack10"
 
     // Déterminer la clé de configuration en fonction du type de boost
     let featureKey = "boost_single";

@@ -19,7 +19,8 @@ export default function RadioPage() {
     <div className="space-y-8 animate-fadeInUp">
       <h1 className="text-3xl font-display font-bold text-text">Radio RMB</h1>
 
-      <div className="rounded-2xl bg-white dark:bg-surface border border-border p-8 text-center">
+      {/* Direct */}
+      <div className="card-premium p-8 text-center">
         <div className="flex items-center justify-center gap-3 mb-4">
           <RadioIcon size={40} className={config?.onAir ? "text-red-500 animate-pulse" : "text-text-secondary"} />
           <h2 className="text-2xl font-bold text-text">
@@ -38,7 +39,8 @@ export default function RadioPage() {
         )}
       </div>
 
-      <div className="rounded-2xl bg-white dark:bg-surface border border-border p-6">
+      {/* Podcasts */}
+      <div className="card-premium p-6">
         <h2 className="text-xl font-semibold text-text mb-4 flex items-center gap-2">
           <Podcast size={20} className="text-primary" /> Podcasts
         </h2>
@@ -47,10 +49,15 @@ export default function RadioPage() {
         ) : (
           <div className="space-y-3">
             {podcasts.map((p: any) => (
-              <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-white/5">
+              <div
+                key={p.id}
+                className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10"
+              >
                 <div>
                   <p className="text-text font-medium">{p.title}</p>
-                  <p className="text-text-secondary text-xs">{new Date(p.createdAt).toLocaleDateString("fr-FR")}</p>
+                  <p className="text-text-secondary text-xs">
+                    {new Date(p.createdAt).toLocaleDateString("fr-FR")}
+                  </p>
                 </div>
                 <button
                   onClick={() => setPlayingPodcast(playingPodcast === p.id ? null : p.id)}

@@ -23,7 +23,8 @@ export default function OrdersPage() {
     <div className="space-y-8 animate-fadeInUp">
       <h1 className="text-3xl font-display font-bold text-text">Mes commandes</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="rounded-2xl bg-white dark:bg-surface border border-border p-6">
+        {/* Achats */}
+        <div className="card-premium p-6">
           <h2 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
             <Package size={20} /> Achats
           </h2>
@@ -34,7 +35,7 @@ export default function OrdersPage() {
           ) : (
             <ul className="space-y-3">
               {purchases.map((p: any) => (
-                <li key={p.id} className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-white/5">
+                <li key={p.id} className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10">
                   <span className="text-text text-sm">{p.product?.title || "Produit supprimé"}</span>
                   <span className="text-primary font-medium">{p.amount} FCFA</span>
                 </li>
@@ -42,7 +43,9 @@ export default function OrdersPage() {
             </ul>
           )}
         </div>
-        <div className="rounded-2xl bg-white dark:bg-surface border border-border p-6">
+
+        {/* Ventes */}
+        <div className="card-premium p-6">
           <h2 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
             <DollarSign size={20} /> Ventes
           </h2>
@@ -51,7 +54,7 @@ export default function OrdersPage() {
           ) : (
             <ul className="space-y-3">
               {sales.map((s: any) => (
-                <li key={s.id} className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-white/5">
+                <li key={s.id} className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10">
                   <span className="text-text text-sm">{s.product?.title || "Produit supprimé"}</span>
                   <span className="text-primary font-medium">{s.amount} FCFA</span>
                 </li>

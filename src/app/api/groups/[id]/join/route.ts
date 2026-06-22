@@ -6,6 +6,18 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
+  // ✅ Vérification KYC
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { kycLevel: true },
+  });
+  if (!user || (user.kycLevel !== "ID_VERIFIED" && user.kycLevel !== "AMBASSADOR")) {
+    return NextResponse.json(
+      { error: "Votre identité doit être vérifiée pour rejoindre un groupe.", code: "KYC_REQUIRED" },
+      { status: 403 }
+    );
+  }
+
   const existing = await prisma.groupMember.findUnique({
     where: { groupId_userId: { groupId: params.id, userId: session.user.id } },
   });

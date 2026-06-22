@@ -6,8 +6,19 @@ export async function GET() {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
+  // ✅ Vérification KYC (décommentez si nécessaire)
+  // const user = await prisma.user.findUnique({
+  //   where: { id: session.user.id },
+  //   select: { kycLevel: true },
+  // });
+  // if (!user || (user.kycLevel !== "ID_VERIFIED" && user.kycLevel !== "AMBASSADOR")) {
+  //   return NextResponse.json(
+  //     { error: "Votre identité doit être vérifiée pour voir les suggestions.", code: "KYC_REQUIRED" },
+  //     { status: 403 }
+  //   );
+  // }
+
   // Trouver des personnes qui partagent des relations communes avec l'utilisateur
-  // Exemple : si l'utilisateur a un parent X, et que X a d'autres enfants (qui ne sont pas encore en relation avec l'utilisateur)
   const userRelations = await prisma.familyRelation.findMany({
     where: { OR: [{ fromUserId: session.user.id }, { toUserId: session.user.id }] },
   });
@@ -19,7 +30,6 @@ export async function GET() {
   }
   relatedUserIds.delete(session.user.id);
 
-  // Pour chaque personne liée, chercher leurs autres relations qui ne sont pas encore liées à l'utilisateur
   const suggestions: { id: string; firstName: string; lastName: string; avatar: string | null; reason: string }[] = [];
 
   for (const id of relatedUserIds) {
@@ -29,7 +39,6 @@ export async function GET() {
     for (const rel of theirRelations) {
       const otherId = rel.fromUserId === id ? rel.toUserId : rel.fromUserId;
       if (otherId === session.user.id || relatedUserIds.has(otherId)) continue;
-      // Vérifier si pas déjà lié à l'utilisateur
       const alreadyLinked = await prisma.familyRelation.findFirst({
         where: {
           OR: [

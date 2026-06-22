@@ -48,12 +48,23 @@ export async function POST(req: Request) {
   const { content, mediaUrl, mediaType, sharedPostId } = await req.json();
   if (!content && !mediaUrl) return NextResponse.json({ error: "Contenu ou média requis" }, { status: 400 });
 
+  // ✅ Vérification KYC (ajoutée)
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { kycLevel: true, restrictedUntil: true, role: true },
+  });
+  if (!user || (user.kycLevel !== "ID_VERIFIED" && user.kycLevel !== "AMBASSADOR")) {
+    return NextResponse.json(
+      { error: "Votre identité doit être vérifiée pour publier.", code: "KYC_REQUIRED" },
+      { status: 403 }
+    );
+  }
+
   // Vérifier si l'utilisateur est restreint
-  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (user?.restrictedUntil && new Date() < user.restrictedUntil) {
+  if (user.restrictedUntil && new Date() < user.restrictedUntil) {
     return NextResponse.json({ error: "Vous êtes temporairement restreint de publication." }, { status: 403 });
   }
-  if (user?.role === "SUSPENDED") {
+  if (user.role === "SUSPENDED") {
     return NextResponse.json({ error: "Compte suspendu." }, { status: 403 });
   }
 

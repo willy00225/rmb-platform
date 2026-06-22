@@ -50,13 +50,13 @@ export default function MarketplacePage() {
             placeholder="Rechercher..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:outline-none focus:border-primary"
+            className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:outline-none focus:border-primary"
           />
         </div>
         <select
           value={category}
           onChange={(e) => { setCategory(e.target.value); setPage(1); }}
-          className="px-4 py-3 rounded-xl bg-gray-50 border border-border text-text"
+          className="px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text"
         >
           <option value="">Toutes catégories</option>
           <option value="agriculture">Agriculture</option>
@@ -81,11 +81,11 @@ export default function MarketplacePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {products.map((product: any) => (
             <Link key={product.id} href={`/dashboard/marketplace/${product.id}`}>
-              <div className="rounded-2xl bg-white border border-border shadow-sm hover:shadow-[var(--shadow-card-hover)] transition overflow-hidden">
+              <div className="card-premium overflow-hidden !p-0">
                 {product.images?.[0] ? (
                   <img src={product.images[0]} alt={product.title} className="w-full h-48 object-cover" />
                 ) : (
-                  <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-text-secondary">
+                  <div className="w-full h-48 bg-gray-100 dark:bg-white/5 flex items-center justify-center text-text-secondary">
                     <Tag size={32} />
                   </div>
                 )}

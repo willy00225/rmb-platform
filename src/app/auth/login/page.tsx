@@ -15,8 +15,16 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Validation simple pour activer le bouton
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const canSubmit = emailValid && password.length > 0;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canSubmit) {
+      toast.error("Veuillez entrer un email valide et un mot de passe.");
+      return;
+    }
     setLoading(true);
     const result = await signIn("credentials", {
       email,
@@ -56,7 +64,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <div className="bg-white border border-border rounded-3xl p-8 shadow-2xl">
+        <div className="card-premium p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm text-text-secondary mb-2">
@@ -67,7 +75,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
+                className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
                 placeholder="vous@exemple.com"
               />
             </div>
@@ -81,7 +89,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-border text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition pr-12"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition pr-12"
                   placeholder="••••••••"
                 />
                 <button
@@ -100,6 +108,7 @@ export default function LoginPage() {
               size="lg"
               className="w-full"
               isLoading={loading}
+              disabled={!canSubmit}
             >
               <LogIn size={18} />
               Se connecter

@@ -9,6 +9,18 @@ export async function PATCH(
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
+  // ✅ Vérification KYC
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { kycLevel: true },
+  });
+  if (!user || (user.kycLevel !== "ID_VERIFIED" && user.kycLevel !== "AMBASSADOR")) {
+    return NextResponse.json(
+      { error: "Votre identité doit être vérifiée pour gérer vos invitations.", code: "KYC_REQUIRED" },
+      { status: 403 }
+    );
+  }
+
   const { action } = await req.json(); // "accept" | "reject" | "block"
 
   const friendship = await prisma.friendship.findUnique({
@@ -20,7 +32,7 @@ export async function PATCH(
 
   let newStatus = friendship.status;
   if (action === "accept") newStatus = "ACCEPTED";
-  else if (action === "reject") newStatus = "PENDING"; // en fait on supprime, donc on va faire un delete plutôt, mais on peut mettre un statut REJECTED
+  else if (action === "reject") newStatus = "PENDING"; // on supprimera ci-dessous
   else if (action === "block") newStatus = "BLOCKED";
 
   await prisma.friendship.update({

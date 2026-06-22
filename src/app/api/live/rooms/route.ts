@@ -7,6 +7,18 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
+  // ✅ Vérification KYC
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { kycLevel: true },
+  });
+  if (!user || (user.kycLevel !== "ID_VERIFIED" && user.kycLevel !== "AMBASSADOR")) {
+    return NextResponse.json(
+      { error: "Votre identité doit être vérifiée pour lancer un live.", code: "KYC_REQUIRED" },
+      { status: 403 }
+    );
+  }
+
   const { title, description } = await req.json();
   if (!title) return NextResponse.json({ error: "Titre requis" }, { status: 400 });
 

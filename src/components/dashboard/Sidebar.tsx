@@ -19,12 +19,12 @@ import {
   GitBranch,
   Package,
   Settings,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { UserName } from "@/components/ui/UserName";
 import { useTheme } from "@/components/theme/ThemeProvider";
-// Retrait de l'import de SearchBar car supprimé
-// import { SearchBar } from "@/components/search/SearchBar";
 
 const navItems = [
   { href: "/dashboard", label: "Accueil", icon: LayoutDashboard },
@@ -57,13 +57,10 @@ export function Sidebar() {
     <motion.aside
       initial={{ x: -60, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
-      // Classe racine sans border-r et sans shadow-sm, bg-bkg uniquement
       className="hidden md:flex fixed left-0 top-14 h-[calc(100vh-3.5rem)] w-60 bg-bkg flex-col z-40"
     >
-      {/* Barre de recherche supprimée */}
-
-      {/* Navigation */}
-      <nav className="flex-1 py-2 space-y-1 px-3 overflow-y-auto">
+      {/* Navigation avec scroll invisible au repos, visible au survol */}
+      <nav className="flex-1 py-2 space-y-1 px-3 overflow-y-auto sidebar-scroll">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -101,9 +98,9 @@ export function Sidebar() {
         )}
       </nav>
 
-      {/* Profil utilisateur */}
+      {/* Profil utilisateur (sans bordure visible) */}
       {session?.user && (
-        <div className="p-3 border-t border-border">
+        <div className="p-3">
           <div className="flex items-center gap-3 px-4 py-3">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-bold">
               {session.user.name?.[0] || "M"}
@@ -118,8 +115,19 @@ export function Sidebar() {
         </div>
       )}
 
-      {/* Déconnexion */}
-      <div className="p-3 border-t border-border">
+      {/* Bouton de thème */}
+      <div className="px-3 pb-1">
+        <button
+          onClick={toggleTheme}
+          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-text-secondary hover:text-text hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+        >
+          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          {theme === "dark" ? "Mode clair" : "Mode sombre"}
+        </button>
+      </div>
+
+      {/* Déconnexion (sans bordure visible) */}
+      <div className="p-3">
         <button
           onClick={() => signOut({ callbackUrl: "/auth/login" })}
           className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"

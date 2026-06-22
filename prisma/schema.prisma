@@ -493,6 +493,12 @@ model Setting {
   value String
 }
 
+// ✅ Modèle SiteConfig simplifié
+model SiteConfig {
+  key   String @id
+  value String
+}
+
 enum Role {
   SUPER_ADMIN
   ADMIN

@@ -37,7 +37,7 @@ export default function PremiumPage() {
     <div className="space-y-8 animate-fadeInUp">
       <h1 className="text-3xl font-display font-bold text-text">Premium RMB</h1>
 
-      <div className="rounded-2xl bg-white border border-border p-8 text-center">
+      <div className="card-premium p-8 text-center">
         <Star size={48} className="text-secondary mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-text mb-2">
           {isSubscribed ? "Vous êtes Premium !" : "Devenez Membre Premium"}
@@ -58,7 +58,7 @@ export default function PremiumPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {features.map((feature: any) => (
-          <div key={feature.id} className="rounded-2xl bg-white border border-border p-6">
+          <div key={feature.id} className="card-premium p-6">
             <CheckCircle size={24} className="text-primary mb-3" />
             <h3 className="font-semibold text-text">{feature.label}</h3>
             <p className="text-sm text-text-secondary mt-2">{feature.description}</p>

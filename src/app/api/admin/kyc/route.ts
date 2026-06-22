@@ -1,8 +1,20 @@
+// src/app/api/admin/kyc/route.ts
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { sendPushNotification } from "@/lib/onesignal";
-import { KycLevel } from "@prisma/client"; // Import de l'enum
+import { sendEmail } from "@/lib/email";
+import { kycApprovedEmail } from "@/emails/kycApproved";
+import { kycRejectedEmail } from "@/emails/kycRejected";
+import { KycLevel } from "@prisma/client";
+
+// Helper pour récupérer la configuration du site (logo, couleurs)
+async function getSiteConfigMap(): Promise<Record<string, string>> {
+  const configs = await prisma.siteConfig.findMany();
+  const map: Record<string, string> = {};
+  for (const cfg of configs) map[cfg.key] = cfg.value;
+  return map;
+}
 
 export async function GET() {
   const session = await auth();
@@ -28,31 +40,75 @@ export async function PATCH(req: Request) {
   const doc = await prisma.kycDocument.findUnique({ where: { id: documentId } });
   if (!doc) return NextResponse.json({ error: "Document introuvable" }, { status: 404 });
 
+  // Récupération de l'utilisateur pour le nom et l'email
+  const user = await prisma.user.findUnique({
+    where: { id: doc.userId },
+    select: { id: true, firstName: true, email: true },
+  });
+
+  const configMap = await getSiteConfigMap();
+  const logoUrl = configMap["site_logo"] || "https://rmb-asso.org/images/logo-rmb.png";
+  const primaryColor = configMap["site_primary_color"] || "#005A3A";
+  const secondaryColor = configMap["site_secondary_color"] || "#C99619";
+
   if (action === "approve") {
-    await prisma.kycDocument.update({ where: { id: documentId }, data: { status: "APPROVED", adminNote } });
-    // Mettre à jour le niveau KYC de l'utilisateur si tous les documents requis sont approuvés (ex: ID + selfie)
+    await prisma.kycDocument.update({
+      where: { id: documentId },
+      data: { status: "APPROVED", adminNote },
+    });
+
+    // Mise à jour du niveau KYC
     const approvedDocs = await prisma.kycDocument.findMany({
       where: { userId: doc.userId, status: "APPROVED" },
       select: { type: true },
     });
     const types = approvedDocs.map(d => d.type);
-    let newLevel: KycLevel = KycLevel.PHONE; // Utilisation de l'enum
+    let newLevel: KycLevel = KycLevel.PHONE;
     if (types.includes("ID_CARD") && types.includes("SELFIE")) newLevel = KycLevel.ID_VERIFIED;
-    // Pour AMBASSADOR, il faut une validation manuelle supplémentaire
     await prisma.user.update({ where: { id: doc.userId }, data: { kycLevel: newLevel } });
 
+    // Notification push
     await sendPushNotification({
       headings: { fr: "KYC approuvé ✅" },
       contents: { fr: "Votre document a été validé." },
       includeExternalUserIds: [doc.userId],
     });
+
+    // Email de confirmation
+    if (user?.email) {
+      await sendEmail({
+        to: user.email,
+        subject: "Votre identité a été vérifiée – RMB Connect",
+        html: kycApprovedEmail(user.firstName, logoUrl, primaryColor, secondaryColor),
+      }).catch(err => console.error("Erreur envoi email approve KYC :", err));
+    }
   } else if (action === "reject") {
-    await prisma.kycDocument.update({ where: { id: documentId }, data: { status: "REJECTED", adminNote } });
+    await prisma.kycDocument.update({
+      where: { id: documentId },
+      data: { status: "REJECTED", adminNote },
+    });
+
+    // Notification push
     await sendPushNotification({
       headings: { fr: "KYC rejeté ❌" },
       contents: { fr: `Motif: ${adminNote || "Document non conforme"}` },
       includeExternalUserIds: [doc.userId],
     });
+
+    // Email de rejet
+    if (user?.email) {
+      await sendEmail({
+        to: user.email,
+        subject: "Votre demande de vérification a été rejetée – RMB Connect",
+        html: kycRejectedEmail(
+          user.firstName,
+          adminNote || "Les documents fournis ne sont pas conformes.",
+          logoUrl,
+          primaryColor,
+          secondaryColor
+        ),
+      }).catch(err => console.error("Erreur envoi email reject KYC :", err));
+    }
   }
 
   return NextResponse.json({ success: true });

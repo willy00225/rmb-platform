@@ -51,10 +51,10 @@ export default function AdminMembersPage() {
     <div className="space-y-8 animate-fadeInUp">
       <h1 className="text-3xl font-display font-bold text-text">Gestion des membres</h1>
 
-      <div className="rounded-2xl bg-white dark:bg-surface border border-border overflow-x-auto">
+      <div className="card-premium overflow-x-auto !p-0">
         <table className="min-w-full">
           <thead>
-            <tr className="border-b border-border">
+            <tr className="border-b border-border dark:border-white/10">
               <th className="p-4 text-left text-sm font-medium text-text-secondary">Nom</th>
               <th className="p-4 text-left text-sm font-medium text-text-secondary">Email</th>
               <th className="p-4 text-left text-sm font-medium text-text-secondary">Rôle</th>
@@ -66,7 +66,7 @@ export default function AdminMembersPage() {
           </thead>
           <tbody>
             {members.map((m: any) => (
-              <tr key={m.id} className="border-b border-border/50">
+              <tr key={m.id} className="border-b border-border/50 dark:border-white/5">
                 <td className="p-4 text-text">
                   <UserName userId={m.id} firstName={m.firstName} lastName={m.lastName} />
                 </td>

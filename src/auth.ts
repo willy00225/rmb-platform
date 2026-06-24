@@ -13,7 +13,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        // ✅ Booléen : true en production (HTTPS), false en développement
+        // true en production (HTTPS), false en développement
         secure: process.env.NODE_ENV === "production",
       },
     },
@@ -28,11 +28,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async redirect({ url, baseUrl }) {
-      // Force l’URL de production (NEXTAUTH_URL) pour les redirections relatives
+      // Redirige toujours vers l'URL de production définie
       const productionUrl = process.env.NEXTAUTH_URL || baseUrl;
+      // Si l'url est relative, on la concatène à l'URL de production
       if (url.startsWith("/")) return `${productionUrl}${url}`;
+      // Si l'url est déjà sur le même domaine, on la laisse
       else if (new URL(url).origin === productionUrl) return url;
-      return productionUrl;
+      // Sinon, on redirige vers le dashboard
+      return `${productionUrl}/dashboard`;
     },
     async jwt({ token, user }) {
       if (user) {

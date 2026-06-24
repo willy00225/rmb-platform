@@ -13,7 +13,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production", // true uniquement en prod
+        secure: process.env.NODE_ENV === "production", // true en prod, false en local
       },
     },
   },
@@ -26,6 +26,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     strategy: "jwt",
   },
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      // Force l'utilisation de la baseUrl de production (Railway)
+      // Si url est relative (commence par /), on la concatène à baseUrl
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // Si l'url est sur le même domaine, on la laisse
+      else if (new URL(url).origin === baseUrl) return url;
+      // Sinon, redirige vers le dashboard par défaut
+      return baseUrl;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id!;

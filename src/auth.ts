@@ -5,7 +5,18 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  trustHost: true, // ← ajouté
+  trustHost: true,
+  cookies: {
+    sessionToken: {
+      name: `__Secure-authjs.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: true, // requis en HTTPS
+      },
+    },
+  },
   pages: {
     signIn: "/auth/login",
     newUser: "/auth/register",
@@ -17,7 +28,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id!; // user.id est optionnel dans les types mais toujours présent à la connexion
+        token.id = user.id!;
         token.role = (user as { role?: string }).role;
         token.kycLevel = (user as { kycLevel?: string }).kycLevel;
       }

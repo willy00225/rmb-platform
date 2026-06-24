@@ -1,4 +1,4 @@
-// src/app/api/contact/route.ts
+﻿// src/app/api/contact/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";

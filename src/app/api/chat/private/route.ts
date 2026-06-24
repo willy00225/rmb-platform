@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { StreamChat } from "stream-chat";
 
@@ -23,11 +23,12 @@ export async function POST(req: Request) {
   });
 
   try {
-    // Si le canal n’existe pas encore, on le crée
+    // Si le canal n'existe pas encore, on le crée
     await channel.create();
-  } catch (err: any) {
-    // S’il existe déjà, une erreur est levée, ce n’est pas grave
-    if (!err.message?.includes("already exists")) {
+  } catch (err: unknown) {
+    // S'il existe déjà, une erreur est levée, ce n'est pas grave
+    const error = err as { message?: string };
+    if (!error.message?.includes("already exists")) {
       console.error("Erreur création canal privé :", err);
     }
   }

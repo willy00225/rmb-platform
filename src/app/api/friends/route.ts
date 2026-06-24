@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { FriendshipStatus } from "@prisma/client";
 
 // GET : lister mes amis (acceptés) — pas de KYC requis
 export async function GET(req: Request) {
@@ -13,8 +14,8 @@ export async function GET(req: Request) {
   const friendships = await prisma.friendship.findMany({
     where: {
       OR: [
-        { requesterId: session.user.id, status: status as any },
-        { addresseeId: session.user.id, status: status as any },
+        { requesterId: session.user.id, status: status as FriendshipStatus },
+        { addresseeId: session.user.id, status: status as FriendshipStatus },
       ],
     },
     include: {

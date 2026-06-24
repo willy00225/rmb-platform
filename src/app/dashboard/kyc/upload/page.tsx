@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { Upload, Loader2, Camera, AlertTriangle, ShieldAlert } from "lucide-react";
+import { Upload, Loader2, Camera, ShieldAlert } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSession } from "next-auth/react";
 
@@ -13,12 +13,9 @@ export default function KycUploadPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [type, setType] = useState("ID_CARD");
   const [uploading, setUploading] = useState(false);
-
-  // Optionnel : récupérer les tentatives restantes
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
 
   useEffect(() => {
-    // Appeler une API pour connaître le nombre de tentatives restantes
     fetch("/api/kyc/attempts")
       .then(res => res.json())
       .then(data => setAttemptsLeft(data.remaining ?? null))
@@ -29,13 +26,11 @@ export default function KycUploadPage() {
     const selected = e.target.files?.[0];
     if (!selected) return;
 
-    // Vérification du type de fichier
     if (!selected.type.startsWith("image/")) {
       toast.error("Veuillez sélectionner une image (JPEG, PNG, etc.).");
       return;
     }
 
-    // Vérification de la taille (max 10 Mo)
     if (selected.size > 10 * 1024 * 1024) {
       toast.error("La taille du fichier ne doit pas dépasser 10 Mo.");
       return;
@@ -49,14 +44,12 @@ export default function KycUploadPage() {
     if (!file) return;
     setUploading(true);
     try {
-      // 1. Upload du fichier
       const formData = new FormData();
       formData.append("file", file);
       const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
       if (!uploadRes.ok) throw new Error("Échec de l'upload");
       const { url } = await uploadRes.json();
 
-      // 2. Créer le document KYC
       const kycRes = await fetch("/api/kyc", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -69,8 +62,9 @@ export default function KycUploadPage() {
 
       toast.success("Document soumis avec succès. Il sera examiné par un administrateur.");
       router.push("/dashboard/kyc");
-    } catch (err: any) {
-      toast.error(err.message || "Erreur");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur";
+      toast.error(message);
     } finally {
       setUploading(false);
     }
@@ -82,14 +76,12 @@ export default function KycUploadPage() {
     <div className="max-w-md mx-auto space-y-8 animate-fadeInUp py-12">
       <h1 className="text-3xl font-display font-bold text-text">Soumettre un document</h1>
 
-      {/* Statut KYC actuel */}
       {kycLevel && (
         <div className="text-sm text-text-secondary">
           Niveau actuel : <span className="font-semibold text-primary">{kycLevel}</span>
         </div>
       )}
 
-      {/* Avertissement */}
       <div className="p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 flex items-start gap-3">
         <ShieldAlert size={20} className="text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
         <div>
@@ -97,17 +89,17 @@ export default function KycUploadPage() {
             Documents officiels obligatoires
           </p>
           <p className="text-xs text-red-700 dark:text-red-400 mt-1">
-            Toute tentative de fraude entraînera la suspension de votre compte. 
+            Toute tentative de fraude entraînera la suspension de votre compte.
             Veuillez fournir des documents authentiques et lisibles.
           </p>
         </div>
       </div>
 
-      {/* Tentatives restantes */}
       {attemptsLeft !== null && (
         <div className={`p-3 rounded-xl text-sm ${
-          attemptsLeft > 0 ? "bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-300" :
-          "bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-300"
+          attemptsLeft > 0
+            ? "bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-300"
+            : "bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-300"
         }`}>
           {attemptsLeft > 0 ? (
             <p>Il vous reste <strong>{attemptsLeft}</strong> tentative{attemptsLeft > 1 ? "s" : ""} aujourd'hui.</p>

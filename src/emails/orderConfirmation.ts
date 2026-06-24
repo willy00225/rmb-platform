@@ -1,4 +1,4 @@
-export function orderConfirmationEmail(
+﻿export function orderConfirmationEmail(
   firstName: string,
   productTitle: string,
   amount: number,

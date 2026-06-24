@@ -1,9 +1,12 @@
-"use client";
+﻿"use client";
+
+export const dynamic = 'force-dynamic';
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Upload, X, Loader2, ArrowLeft, Check } from "lucide-react";
+import { Camera, Upload, X, Loader2, ArrowLeft, Check, Pencil } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function NewStoryPage() {
@@ -40,14 +43,12 @@ export default function NewStoryPage() {
     setUploading(true);
 
     try {
-      // Upload du fichier
       const formData = new FormData();
       formData.append("file", file);
       const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
       if (!uploadRes.ok) throw new Error("Échec de l'upload");
       const { url } = await uploadRes.json();
 
-      // Création de la story
       const storyRes = await fetch("/api/stories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -58,8 +59,9 @@ export default function NewStoryPage() {
 
       toast.success("Story publiée !");
       router.push("/dashboard");
-    } catch (err: any) {
-      toast.error(err.message || "Erreur lors de la publication.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur lors de la publication.";
+      toast.error(message);
     } finally {
       setUploading(false);
     }
@@ -76,7 +78,7 @@ export default function NewStoryPage() {
           <ArrowLeft size={20} className="text-text" />
         </button>
         <h1 className="text-lg font-semibold text-text">Nouvelle story</h1>
-        <div className="w-10" /> {/* pour centrer le titre */}
+        <div className="w-10" />
       </div>
 
       {/* Contenu principal */}
@@ -126,12 +128,32 @@ export default function NewStoryPage() {
                   muted
                 />
               )}
-              <button
-                onClick={handleRemove}
-                className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition backdrop-blur"
-              >
-                <X size={20} />
-              </button>
+              {/* Boutons sur la preview */}
+              <div className="absolute top-4 right-4 flex gap-2">
+                {/* Changer de fichier */}
+                <label className="w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition backdrop-blur cursor-pointer">
+                  <Pencil size={18} />
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    capture="environment"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </label>
+                <button
+                  onClick={handleRemove}
+                  className="w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition backdrop-blur"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              {/* Nom du fichier */}
+              {file && (
+                <div className="absolute bottom-4 left-4 right-4 text-white text-sm bg-black/50 backdrop-blur px-3 py-1 rounded-lg truncate">
+                  {file.name}
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

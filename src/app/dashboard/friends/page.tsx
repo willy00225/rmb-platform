@@ -1,4 +1,7 @@
-"use client";
+﻿"use client";
+
+export const dynamic = 'force-dynamic'; // Désactive le prérendu
+
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,21 +11,50 @@ import toast from "react-hot-toast";
 import { useChat } from "@/contexts/ChatContext";
 import { UserName } from "@/components/ui/UserName";
 
+// Interfaces
+interface SearchUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatar?: string | null;
+}
+
+interface FriendRequest {
+  id: string;
+  createdAt: string;
+  friend: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
+interface Friend {
+  id: string;
+  createdAt: string;
+  friend: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
 export default function FriendsPage() {
   const { data: session } = useSession();
   const { openChatWithFriend } = useChat();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
 
   // Amis acceptés
-  const { data: friends = [], isLoading: friendsLoading } = useQuery({
+  const { data: friends = [], isLoading: friendsLoading } = useQuery<Friend[]>({
     queryKey: ["friends", "accepted"],
     queryFn: () => fetch("/api/friends?status=ACCEPTED").then(res => res.json()),
   });
 
   // Demandes en attente
-  const { data: pendingRequests = [] } = useQuery({
+  const { data: pendingRequests = [] } = useQuery<FriendRequest[]>({
     queryKey: ["friends", "pending"],
     queryFn: () => fetch("/api/friends?status=PENDING").then(res => res.json()),
   });
@@ -100,7 +132,7 @@ export default function FriendsPage() {
         </div>
         {searchResults.length > 0 && (
           <div className="mt-4 space-y-3">
-            {searchResults.map((user: any) => (
+            {searchResults.map((user) => (
               <div key={user.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-xl bg-white/5 gap-3 sm:gap-0">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-400 flex-shrink-0">
@@ -133,7 +165,7 @@ export default function FriendsPage() {
         <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-lg">
           <h2 className="text-lg font-semibold text-white mb-4">Invitations en attente</h2>
           <div className="space-y-3">
-            {pendingRequests.map((req: any) => (
+            {pendingRequests.map((req) => (
               <div key={req.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-xl bg-white/5 gap-3 sm:gap-0">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-400 flex-shrink-0">
@@ -181,7 +213,7 @@ export default function FriendsPage() {
           <p className="text-gray-500 italic">Aucun ami pour le moment. Recherchez des membres et ajoutez-les.</p>
         ) : (
           <div className="space-y-3">
-            {friends.map((f: any) => (
+            {friends.map((f) => (
               <div key={f.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-xl bg-white/5 gap-3 sm:gap-0">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-400 flex-shrink-0">

@@ -1,10 +1,11 @@
-import NextAuth from "next-auth";
+﻿import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true, // ← ajouté
   pages: {
     signIn: "/auth/login",
     newUser: "/auth/register",
@@ -16,9 +17,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.role = user.role;
-        token.kycLevel = user.kycLevel;
+        token.id = user.id!; // user.id est optionnel dans les types mais toujours présent à la connexion
+        token.role = (user as { role?: string }).role;
+        token.kycLevel = (user as { kycLevel?: string }).kycLevel;
       }
       return token;
     },

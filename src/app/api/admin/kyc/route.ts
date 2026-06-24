@@ -1,4 +1,4 @@
-// src/app/api/admin/kyc/route.ts
+﻿// src/app/api/admin/kyc/route.ts
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";

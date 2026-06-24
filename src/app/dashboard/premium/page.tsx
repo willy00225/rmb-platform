@@ -1,23 +1,48 @@
-"use client";
+﻿"use client";
+
+export const dynamic = 'force-dynamic'; // Désactive le prérendu
+
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { CheckCircle, Star, Zap } from "lucide-react";
 import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
 
+// Interfaces pour les données premium
+interface PricingConfig {
+  id: string;
+  featureKey: string;
+  amount: number;
+  active: boolean;
+  label: string;
+}
+
+interface Feature {
+  id: string;
+  label: string;
+  description: string;
+  active: boolean;
+  featureKey: string;
+}
+
+interface PricingData {
+  configs: PricingConfig[];
+  features: Feature[];
+}
+
 export default function PremiumPage() {
   const { data: session } = useSession();
 
-  // Récupération des tarifs et fonctionnalités Premium
-  const { data: pricingData } = useQuery({
+  // Récupération des tarifs et fonctionnalités Premium typés
+  const { data: pricingData } = useQuery<PricingData>({
     queryKey: ["pricing"],
     queryFn: () => fetch("/api/admin/pricing").then(res => res.json()),
   });
-  const configs = pricingData?.configs?.filter((c: any) => c.active) || [];
-  const features = pricingData?.features?.filter((f: any) => f.active) || [];
+  const configs = pricingData?.configs?.filter((c) => c.active) || [];
+  const features = pricingData?.features?.filter((f) => f.active) || [];
 
   // Vérification du statut d'abonnement
-  const { data: subscribeData } = useQuery({
+  const { data: subscribeData } = useQuery<{ active: boolean }>({
     queryKey: ["subscribeStatus"],
     queryFn: () => fetch("/api/subscribe/status").then(res => res.json()),
   });
@@ -32,6 +57,8 @@ export default function PremiumPage() {
       toast.error("Abonnement non disponible pour le moment.");
     }
   };
+
+  const premiumMonthly = configs.find((c) => c.featureKey === "premium_monthly");
 
   return (
     <div className="space-y-8 animate-fadeInUp">
@@ -48,16 +75,15 @@ export default function PremiumPage() {
             : "Soutenez le réseau et débloquez des privilèges exclusifs."}
         </p>
 
-        {!isSubscribed && configs.find((c: any) => c.featureKey === "premium_monthly") && (
+        {!isSubscribed && premiumMonthly && (
           <Button onClick={handleSubscribe} variant="primary" size="lg">
-            <Star size={18} /> S'abonner pour{" "}
-            {configs.find((c: any) => c.featureKey === "premium_monthly")?.amount} FCFA/mois
+            <Star size={18} /> S'abonner pour {premiumMonthly.amount} FCFA/mois
           </Button>
         )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {features.map((feature: any) => (
+        {features.map((feature) => (
           <div key={feature.id} className="card-premium p-6">
             <CheckCircle size={24} className="text-primary mb-3" />
             <h3 className="font-semibold text-text">{feature.label}</h3>

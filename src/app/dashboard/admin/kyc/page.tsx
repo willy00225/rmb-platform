@@ -1,13 +1,25 @@
-"use client";
+﻿"use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
+interface KycDocument {
+  id: string;
+  type: string;
+  createdAt: string;
+  fileUrl?: string;
+  user: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+}
+
 export default function AdminKycPage() {
   const queryClient = useQueryClient();
 
-  const { data: docs = [], isLoading } = useQuery({
+  const { data: docs = [], isLoading } = useQuery<KycDocument[]>({
     queryKey: ["adminKyc"],
     queryFn: () => fetch("/api/admin/kyc").then(res => res.json()),
   });
@@ -35,31 +47,60 @@ export default function AdminKycPage() {
     mutation.mutate({ documentId, action });
   };
 
-  if (isLoading) return <Loader2 className="animate-spin text-brand-500 mx-auto mt-10" size={32} />;
+  if (isLoading)
+    return (
+      <Loader2 className="animate-spin text-primary mx-auto mt-10" size={32} />
+    );
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-display font-bold text-white">Validation KYC</h1>
+      <h1 className="text-3xl font-display font-bold text-text dark:text-white">
+        Validation KYC
+      </h1>
       {docs.length === 0 ? (
-        <p className="text-gray-500 italic">Aucun document en attente.</p>
+        <p className="text-text-secondary italic">Aucun document en attente.</p>
       ) : (
         <div className="space-y-4">
-          {docs.map((doc: any) => (
-            <div key={doc.id} className="p-4 rounded-2xl bg-white/5 border border-white/10">
+          {docs.map((doc) => (
+            <div
+              key={doc.id}
+              className="p-4 rounded-2xl bg-white dark:bg-white/5 border border-border dark:border-white/10"
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-white font-medium">{doc.user.firstName} {doc.user.lastName}</p>
-                  <p className="text-sm text-gray-400">{doc.user.email}</p>
-                  <p className="text-xs text-gray-500">Type: {doc.type} · Soumis le {new Date(doc.createdAt).toLocaleDateString()}</p>
+                  <p className="text-text dark:text-white font-medium">
+                    {doc.user.firstName} {doc.user.lastName}
+                  </p>
+                  <p className="text-sm text-text-secondary dark:text-gray-400">
+                    {doc.user.email}
+                  </p>
+                  <p className="text-xs text-text-secondary dark:text-gray-500">
+                    Type: {doc.type} · Soumis le{" "}
+                    {new Date(doc.createdAt).toLocaleDateString()}
+                  </p>
                   {doc.fileUrl && (
-                    <a href={doc.fileUrl} target="_blank" className="text-brand-400 text-sm underline">Voir le document</a>
+                    <a
+                      href={doc.fileUrl}
+                      target="_blank"
+                      className="text-primary dark:text-primary text-sm underline"
+                    >
+                      Voir le document
+                    </a>
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={() => handleAction(doc.id, "approve")} variant="primary" size="sm">
+                  <Button
+                    onClick={() => handleAction(doc.id, "approve")}
+                    variant="primary"
+                    size="sm"
+                  >
                     <CheckCircle size={16} /> Valider
                   </Button>
-                  <Button onClick={() => handleAction(doc.id, "reject")} variant="secondary" size="sm">
+                  <Button
+                    onClick={() => handleAction(doc.id, "reject")}
+                    variant="secondary"
+                    size="sm"
+                  >
                     <XCircle size={16} /> Rejeter
                   </Button>
                 </div>

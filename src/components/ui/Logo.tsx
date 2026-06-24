@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
@@ -12,7 +12,7 @@ export function Logo({ size = "md", withSlogan = true, className = "" }: LogoPro
   const { data: config } = useQuery({
     queryKey: ["site-config"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/site-config");
+      const res = await fetch("/api/site-config");
       if (!res.ok) return null;
       return res.json();
     },

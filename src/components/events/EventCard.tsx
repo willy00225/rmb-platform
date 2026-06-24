@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { CalendarDays, MapPin, Users } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -35,7 +35,7 @@ export function EventCard({ event, onRegister }: { event: Event; onRegister?: ()
         <span className="flex items-center gap-1 text-sm text-text-secondary"><Users size={14} /> {event._count.participations} participant(s)</span>
         {onRegister && (
           <button onClick={onRegister} className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-hover transition">
-            S’inscrire
+            S'inscrire
           </button>
         )}
       </div>

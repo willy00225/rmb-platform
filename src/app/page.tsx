@@ -1,4 +1,4 @@
-import { HomeHeader } from "@/components/home/HomeHeader";
+﻿import { HomeHeader } from "@/components/home/HomeHeader";
 import { auth } from "@/auth";
 import { HeroSection } from "@/components/home/HeroSection";
 import { AboutSection } from "@/components/home/AboutSection";

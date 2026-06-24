@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -60,7 +60,7 @@ export default function LoginPage() {
             Connectez-vous
           </h1>
           <p className="text-text-secondary mt-1">
-            Rejoignez le réseau mondial des Bétés
+            Rejoignez le réseau mondial des Bhétés
           </p>
         </div>
 

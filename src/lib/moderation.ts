@@ -1,4 +1,4 @@
-// Liste des mots interdits (apolitique, respectueux)
+﻿// Liste des mots interdits (apolitique, respectueux)
 const BLOCKED_WORDS = [
   "politique", "parti", "élection", "vote", "gouvernement", "ministre",
   "insulte", "haine", "violence", "discrimination", "racisme",

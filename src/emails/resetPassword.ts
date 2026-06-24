@@ -1,4 +1,4 @@
-export function resetPasswordEmail(
+﻿export function resetPasswordEmail(
   resetLink: string,
   logoUrl: string,
   primaryColor = "#005A3A",
@@ -47,7 +47,7 @@ export function resetPasswordEmail(
           <!-- Note de sécurité -->
           <tr>
             <td style="padding: 16px 32px 24px 32px; text-align:center; color:#9CA3AF; font-size:12px;">
-              <p style="margin:0;">Si vous n’avez pas demandé cette réinitialisation, ignorez simplement cet email.</p>
+              <p style="margin:0;">Si vous n'avez pas demandé cette réinitialisation, ignorez simplement cet email.</p>
             </td>
           </tr>
           <!-- Pied de page -->

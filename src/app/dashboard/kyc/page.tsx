@@ -1,9 +1,11 @@
-import { auth } from "@/auth";
+﻿import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/Button";
 import { ShieldCheck, Upload, Clock, CheckCircle, XCircle, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+
+export const dynamic = 'force-dynamic'; // Désactive le prérendu pour éviter l'erreur React Query
 
 export default async function KycPage() {
   const session = await auth();

@@ -1,11 +1,37 @@
-import { CheckCircle } from "lucide-react";
-
-export function PremiumBadge({ isPremium }: { isPremium: boolean }) {
+﻿export function PremiumBadge({ isPremium }: { isPremium: boolean }) {
   if (!isPremium) return null;
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-blue-700 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-full ml-1 font-medium">
-      <CheckCircle size={12} className="text-blue-600" />
-      Premium
-    </span>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="ml-1 flex-shrink-0"
+    >
+      {/* Fond bleu du cercle (intérieur plein) */}
+      <circle cx="8" cy="8" r="6.5" fill="#2563eb" />
+
+      {/* Bordure dentelée : un trait pointillé épais qui entoure le cercle */}
+      <circle
+        cx="8"
+        cy="8"
+        r="7.5"
+        stroke="#2563eb"
+        strokeWidth="1.5"
+        strokeDasharray="2.5 2.5"
+        fill="none"
+      />
+
+      {/* Coche blanche au centre */}
+      <path
+        d="M5 8l2 2 4-4"
+        stroke="white"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
   );
 }

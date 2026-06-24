@@ -1,21 +1,48 @@
-"use client";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { CalendarDays, Users, Radio } from "lucide-react";
+import { SpotCarousel } from "@/components/spots/SpotCarousel";
+
+// Types correspondant aux données renvoyées par les API
+interface EventItem {
+  id: string | number;
+  title: string;
+  startDate: string; // date ISO
+}
+
+interface FriendOnlineItem {
+  id: string | number;
+  friend: {
+    id: string | number;
+    firstName: string;
+    lastName: string;
+  };
+}
 
 export function RightSidebar() {
-  const { data: events = [] } = useQuery({
+  const { data: events = [] } = useQuery<EventItem[]>({
     queryKey: ["upcoming-events"],
     queryFn: () => fetch("/api/events").then(res => res.json()),
   });
 
-  const { data: friendsOnline = [] } = useQuery({
+  const { data: friendsOnline } = useQuery<FriendOnlineItem[]>({
     queryKey: ["friends-online"],
-    queryFn: () => fetch("/api/friends?status=ACCEPTED&online=true").then(res => res.json()),
+    queryFn: () =>
+      fetch("/api/friends?status=ACCEPTED&online=true").then(res => res.json()),
   });
+
+  // Sécurisation : on s'assure que l'on travaille avec un tableau,
+  // que l'API renvoie directement un tableau ou un objet { friends: [...] }
+  const friendsList: FriendOnlineItem[] = Array.isArray(friendsOnline)
+    ? friendsOnline
+    : (friendsOnline as any)?.friends ?? [];
 
   return (
     <aside className="hidden lg:block fixed right-0 top-14 w-80 h-[calc(100vh-3.5rem)] overflow-y-auto bg-bkg p-4 space-y-6">
+      {/* Carrousel de spots publicitaires */}
+      <SpotCarousel />
+
       {/* Événements à venir */}
       <div className="card-premium p-4">
         <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
@@ -25,12 +52,17 @@ export function RightSidebar() {
           <p className="text-text-secondary text-xs">Aucun événement à venir.</p>
         ) : (
           <ul className="space-y-2">
-            {events.slice(0, 3).map((event: any) => (
+            {events.slice(0, 3).map((event) => (
               <li key={event.id}>
-                <Link href={`/dashboard/events/${event.id}`} className="text-sm text-text hover:text-primary">
+                <Link
+                  href={`/dashboard/events/${event.id}`}
+                  className="text-sm text-text hover:text-primary"
+                >
                   {event.title}
                 </Link>
-                <p className="text-text-secondary text-xs">{new Date(event.startDate).toLocaleDateString("fr-FR")}</p>
+                <p className="text-text-secondary text-xs">
+                  {new Date(event.startDate).toLocaleDateString("fr-FR")}
+                </p>
               </li>
             ))}
           </ul>
@@ -42,14 +74,17 @@ export function RightSidebar() {
         <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
           <Users size={16} /> En ligne
         </h3>
-        {friendsOnline.length === 0 ? (
+        {friendsList.length === 0 ? (
           <p className="text-text-secondary text-xs">Aucun ami en ligne.</p>
         ) : (
           <ul className="space-y-2">
-            {friendsOnline.slice(0, 10).map((friend: any) => (
+            {friendsList.slice(0, 10).map((friend) => (
               <li key={friend.id} className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-green-500" />
-                <Link href={`/dashboard/profile/${friend.friend.id}`} className="text-sm text-text hover:text-primary">
+                <Link
+                  href={`/dashboard/profile/${friend.friend.id}`}
+                  className="text-sm text-text hover:text-primary"
+                >
                   {friend.friend.firstName} {friend.friend.lastName}
                 </Link>
               </li>
@@ -66,11 +101,6 @@ export function RightSidebar() {
         <Link href="/dashboard/radio" className="text-primary text-sm hover:underline">
           Écouter le direct
         </Link>
-      </div>
-
-      {/* Publicité (futur emplacement) */}
-      <div className="card-premium p-4 text-center text-text-secondary text-xs">
-        Espace publicitaire
       </div>
     </aside>
   );

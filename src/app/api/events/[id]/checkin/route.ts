@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
@@ -20,12 +20,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     );
   }
 
+  const { id: eventId } = await params;
   const { userId } = await req.json();
   if (!userId) return NextResponse.json({ error: "userId requis" }, { status: 400 });
 
   // Vérifier que l'utilisateur est bien inscrit
   const participation = await prisma.participation.findFirst({
-    where: { eventId: params.id, userId },
+    where: { eventId, userId },
   });
   if (!participation) return NextResponse.json({ error: "Utilisateur non inscrit" }, { status: 404 });
 

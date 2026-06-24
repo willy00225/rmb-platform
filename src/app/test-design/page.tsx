@@ -1,4 +1,4 @@
-export default function TestDesign() {
+﻿export default function TestDesign() {
   return (
     <div className="min-h-screen bg-brand-500 flex items-center justify-center">
       <div className="p-10 bg-white/20 backdrop-blur-lg rounded-3xl border border-white/30 shadow-2xl">

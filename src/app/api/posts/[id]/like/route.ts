@@ -3,9 +3,14 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { sendPushNotification } from "@/lib/onesignal";
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+
+  const { id: postId } = await params;
 
   // ✅ Vérification KYC
   const user = await prisma.user.findUnique({
@@ -20,17 +25,17 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   const existing = await prisma.postLike.findUnique({
-    where: { postId_userId: { postId: params.id, userId: session.user.id } },
+    where: { postId_userId: { postId, userId: session.user.id } },
   });
   if (existing) return NextResponse.json({ liked: true });
 
   await prisma.postLike.create({
-    data: { postId: params.id, userId: session.user.id },
+    data: { postId, userId: session.user.id },
   });
 
   // Notification à l'auteur du post (sauf si c'est lui-même)
   const post = await prisma.post.findUnique({
-    where: { id: params.id },
+    where: { id: postId },
     select: { userId: true, content: true },
   });
   if (post && post.userId !== session.user.id) {
@@ -48,9 +53,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   return NextResponse.json({ liked: true });
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+
+  const { id: postId } = await params;
 
   // ✅ Vérification KYC (même pour retirer un like)
   const user = await prisma.user.findUnique({
@@ -65,7 +75,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
   }
 
   await prisma.postLike.deleteMany({
-    where: { postId: params.id, userId: session.user.id },
+    where: { postId, userId: session.user.id },
   });
   return NextResponse.json({ liked: false });
 }

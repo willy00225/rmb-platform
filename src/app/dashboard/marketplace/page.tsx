@@ -1,12 +1,22 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { Loader2, Search, MapPin, Tag } from "lucide-react";
 
+// Interface pour un produit
+interface Product {
+  id: string;
+  title: string;
+  price: number;
+  location?: string;
+  images?: string[];
+}
+
+// Réponse typée de l'API marketplace
 interface MarketplaceResponse {
-  products: any[];
+  products: Product[];
   totalPages: number;
 }
 
@@ -79,7 +89,7 @@ export default function MarketplacePage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.map((product: any) => (
+          {products.map((product) => (
             <Link key={product.id} href={`/dashboard/marketplace/${product.id}`}>
               <div className="card-premium overflow-hidden !p-0">
                 {product.images?.[0] ? (

@@ -1,4 +1,7 @@
-"use client";
+﻿"use client";
+
+export const dynamic = 'force-dynamic'; // Désactive le prérendu
+
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
@@ -190,7 +193,7 @@ export default function NewProductPage() {
         {/* Boutons */}
         <div className="flex gap-4 pt-4">
           <Button type="submit" variant="primary" size="lg" isLoading={loading} className="flex-1">
-            <Tag size={18} /> Publier l’article
+            <Tag size={18} /> Publier l'article
           </Button>
           <Button type="button" variant="ghost" size="lg" onClick={() => router.back()}>
             Annuler

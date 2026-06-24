@@ -1,19 +1,31 @@
-"use client";
+﻿"use client";
+
+export const dynamic = 'force-dynamic'; // Désactive le pré-rendu pour éviter l'erreur SSR
+
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { Loader2, Package, DollarSign } from "lucide-react";
+
+// Interface pour un achat/vente
+interface OrderItem {
+  id: string;
+  amount: number;
+  product?: {
+    title: string;
+  };
+}
 
 export default function OrdersPage() {
   const { data: session } = useSession();
   const userId = session?.user?.id;
 
-  const { data: purchases = [], isLoading } = useQuery({
+  const { data: purchases = [], isLoading } = useQuery<OrderItem[]>({
     queryKey: ["purchases", userId],
     queryFn: () => fetch(`/api/marketplace/orders?type=buyer&userId=${userId}`).then(res => res.json()),
     enabled: !!userId,
   });
 
-  const { data: sales = [] } = useQuery({
+  const { data: sales = [] } = useQuery<OrderItem[]>({
     queryKey: ["sales", userId],
     queryFn: () => fetch(`/api/marketplace/orders?type=seller&userId=${userId}`).then(res => res.json()),
     enabled: !!userId,
@@ -34,7 +46,7 @@ export default function OrdersPage() {
             <p className="text-text-secondary italic">Aucun achat pour le moment.</p>
           ) : (
             <ul className="space-y-3">
-              {purchases.map((p: any) => (
+              {purchases.map((p) => (
                 <li key={p.id} className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10">
                   <span className="text-text text-sm">{p.product?.title || "Produit supprimé"}</span>
                   <span className="text-primary font-medium">{p.amount} FCFA</span>
@@ -53,7 +65,7 @@ export default function OrdersPage() {
             <p className="text-text-secondary italic">Aucune vente pour le moment.</p>
           ) : (
             <ul className="space-y-3">
-              {sales.map((s: any) => (
+              {sales.map((s) => (
                 <li key={s.id} className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10">
                   <span className="text-text text-sm">{s.product?.title || "Produit supprimé"}</span>
                   <span className="text-primary font-medium">{s.amount} FCFA</span>

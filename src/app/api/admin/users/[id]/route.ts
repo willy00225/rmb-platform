@@ -5,13 +5,14 @@ import { createAuditLog } from "@/lib/audit";
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
   if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
   }
 
+  const { id } = await params;
   const body = await req.json();
   const { role, kycLevel, twoFactorEnabled } = body;
 
@@ -21,13 +22,13 @@ export async function PATCH(
   if (twoFactorEnabled !== undefined) updateData.twoFactorEnabled = twoFactorEnabled;
 
   // Un admin ne peut pas modifier un super admin
-  const user = await prisma.user.findUnique({ where: { id: params.id } });
+  const user = await prisma.user.findUnique({ where: { id } });
   if (user?.role === "SUPER_ADMIN" && session.user.role !== "SUPER_ADMIN") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
   }
 
   await prisma.user.update({
-    where: { id: params.id },
+    where: { id },
     data: updateData,
   });
 
@@ -40,7 +41,7 @@ export async function PATCH(
   await createAuditLog({
     action: "USER_UPDATED",
     entityType: "User",
-    entityId: params.id,
+    entityId: id,
     adminId: session.user.id,
     details: JSON.stringify({ changes }),
   });

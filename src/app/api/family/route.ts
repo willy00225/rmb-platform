@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -22,10 +22,10 @@ export async function GET(req: Request) {
   });
 
   // Construire l'arbre
-  const parents: any[] = [];
-  const children: any[] = [];
-  const spouses: any[] = [];
-  const siblings: any[] = [];
+  const parents: Record<string, unknown>[] = [];
+  const children: Record<string, unknown>[] = [];
+  const spouses: Record<string, unknown>[] = [];
+  const siblings: Record<string, unknown>[] = [];
 
   for (const rel of relations) {
     if (rel.relation === "parent") {

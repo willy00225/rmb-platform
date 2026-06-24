@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
@@ -26,7 +26,7 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     setLoading(true);
-    const body: any = { firstName, lastName, email, phone, fonction };
+    const body: Record<string, unknown> = { firstName, lastName, email, phone, fonction };
     if (newPassword) {
       body.currentPassword = currentPassword;
       body.newPassword = newPassword;

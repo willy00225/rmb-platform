@@ -1,5 +1,13 @@
-"use client";
+﻿"use client";
 import { useEffect, useState } from "react";
+
+// Type minimal pour l'objet OneSignal utilisé dans ce composant
+interface OneSignalType {
+  Notifications: {
+    permission: string;
+    requestPermission: () => Promise<void>;
+  };
+}
 
 export function NotificationPrompt() {
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -8,9 +16,8 @@ export function NotificationPrompt() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push((OneSignal: any) => {
+    window.OneSignalDeferred.push((OneSignal: OneSignalType) => {
       try {
-        // Dans OneSignal v16, Notifications.permission est une propriété synchrone (chaîne)
         const permission = OneSignal.Notifications.permission;
         if (permission === "granted") {
           setIsSubscribed(true);
@@ -26,7 +33,7 @@ export function NotificationPrompt() {
   const handleSubscribe = async () => {
     if (typeof window === "undefined") return;
     window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(async (OneSignal: any) => {
+    window.OneSignalDeferred.push(async (OneSignal: OneSignalType) => {
       try {
         await OneSignal.Notifications.requestPermission();
         const permission = OneSignal.Notifications.permission;

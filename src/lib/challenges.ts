@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
 
 export async function updateChallenges(type: string) {
   const challenges = await prisma.challenge.findMany({

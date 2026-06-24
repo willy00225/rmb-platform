@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { forwardRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Download, MapPin, Calendar, Phone, Briefcase } from "lucide-react";

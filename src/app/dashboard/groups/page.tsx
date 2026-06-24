@@ -1,4 +1,7 @@
-"use client";
+﻿"use client";
+
+export const dynamic = 'force-dynamic'; // Désactive le prérendu
+
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -6,13 +9,21 @@ import { Button } from "@/components/ui/Button";
 import { Loader2, Users, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 
+// Interface pour un groupe
+interface Group {
+  id: string;
+  name: string;
+  description?: string | null;
+  _count?: { members: number };
+}
+
 export default function GroupsPage() {
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
 
   // Récupération des groupes
-  const { data: groups = [], isLoading } = useQuery({
+  const { data: groups = [], isLoading } = useQuery<Group[]>({
     queryKey: ["groups"],
     queryFn: () => fetch("/api/groups").then(res => res.json()),
   });
@@ -78,7 +89,7 @@ export default function GroupsPage() {
         <Loader2 className="animate-spin text-primary mx-auto" size={32} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {groups.map((group: any) => (
+          {groups.map((group) => (
             <Link key={group.id} href={`/dashboard/groups/${group.id}`}>
               <div className="card-premium p-6 h-full cursor-pointer">
                 <h3 className="text-lg font-semibold text-text break-words">{group.name}</h3>

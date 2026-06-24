@@ -1,21 +1,30 @@
-"use client";
+﻿"use client";
 import { useRef } from "react";
 import { MemberCard } from "@/components/dashboard/MemberCard";
 import { ExportPDFButton } from "@/components/ui/ExportPDFButton";
 
+// Extraction des types des props de MemberCard
+type MemberCardProps = React.ComponentProps<typeof MemberCard>;
+type MemberCardUser = MemberCardProps['user'];
+type MemberCardParents = MemberCardProps['parents'];
+type MemberCardSiblings = MemberCardProps['siblings'];
+
 interface ExportSectionProps {
-  memberCardUser: any; // ajustez le type selon vos besoins
-  familyData: { parents: any[]; siblings: any[] };
+  memberCardUser: MemberCardUser;
+  familyData: {
+    parents: MemberCardParents;
+    siblings: MemberCardSiblings;
+  };
 }
 
 export function ExportSection({ memberCardUser, familyData }: ExportSectionProps) {
-  // Déclaration avec le type explicite pour éviter l'erreur
+  // useRef<HTMLDivElement> crée un MutableRefObject, mais ExportPDFButton attend un RefObject.
+  // On conserve l'assertion pour compatibilité.
   const cardRef = useRef<HTMLDivElement>(null);
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        {/* Assertion de type pour correspondre à l'interface attendue */}
         <ExportPDFButton cardRef={cardRef as React.RefObject<HTMLDivElement>} />
       </div>
       <MemberCard

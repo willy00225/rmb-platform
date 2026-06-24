@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
@@ -94,7 +94,7 @@ export default function RegisterPage() {
             Créez votre compte
           </h1>
           <p className="text-text-secondary mt-1">
-            Rejoignez le réseau mondial des Bétés
+            Rejoignez le réseau mondial des Bhétés
           </p>
         </div>
 

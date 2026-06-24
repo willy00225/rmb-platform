@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { Loader2, Save } from "lucide-react";
@@ -41,7 +41,7 @@ export default function SiteSettingsPage() {
   return (
     <div className="space-y-8 animate-fadeInUp max-w-xl">
       <h1 className="text-3xl font-display font-bold text-text">Paramètres du site</h1>
-      <div className="rounded-2xl bg-white dark:bg-surface border border-border p-6 space-y-4">
+      <div className="rounded-2xl bg-white dark:bg-surface border border-border dark:border-white/10 p-6 space-y-4">
         {[
           { key: "contact_address", label: "Adresse" },
           { key: "contact_email", label: "Email" },
@@ -54,7 +54,7 @@ export default function SiteSettingsPage() {
               type="text"
               value={form[key] || ""}
               onChange={(e) => handleChange(key, e.target.value)}
-              className="w-full mt-1 px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border text-text"
+              className="w-full mt-1 px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text"
             />
           </div>
         ))}

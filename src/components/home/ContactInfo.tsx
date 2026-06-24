@@ -1,11 +1,16 @@
-"use client";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
 import { MapPin, Mail, Phone } from "lucide-react";
 
 export function ContactInfo() {
   const { data: config } = useQuery({
     queryKey: ["site-config"],
-    queryFn: () => fetch("/api/admin/site-config").then(res => res.json()),
+    queryFn: async () => {
+      const res = await fetch("/api/site-config");
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 60 * 60 * 1000, // cache 1h
   });
 
   return (

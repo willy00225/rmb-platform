@@ -1,4 +1,4 @@
-export function welcomeEmail(
+﻿export function welcomeEmail(
   firstName: string,
   logoUrl: string,
   primaryColor = "#005A3A",

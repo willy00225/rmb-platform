@@ -1,10 +1,9 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Button } from "@/components/ui/Button";
-import { useSession } from "next-auth/react";
 import { Menu, X } from "lucide-react";
 
 const links = [
@@ -15,7 +14,6 @@ const links = [
 ];
 
 export function HomeHeader() {
-  const { data: session } = useSession();
   const [open, setOpen] = useState(false);
 
   return (
@@ -36,20 +34,12 @@ export function HomeHeader() {
         {/* Right side (desktop) */}
         <div className="hidden md:flex items-center gap-3">
           <ThemeToggle />
-          {session?.user ? (
-            <Link href="/dashboard">
-              <Button variant="primary" size="sm">Tableau de bord</Button>
-            </Link>
-          ) : (
-            <>
-              <Link href="/auth/login">
-                <Button variant="ghost" size="sm">Connexion</Button>
-              </Link>
-              <Link href="/auth/register">
-                <Button variant="primary" size="sm">Inscription</Button>
-              </Link>
-            </>
-          )}
+          <Link href="/auth/login">
+            <Button variant="ghost" size="sm">Connexion</Button>
+          </Link>
+          <Link href="/auth/register">
+            <Button variant="primary" size="sm">Inscription</Button>
+          </Link>
         </div>
 
         {/* Mobile hamburger */}
@@ -79,20 +69,12 @@ export function HomeHeader() {
             </Link>
           ))}
           <div className="flex items-center gap-3 pt-2">
-            {session?.user ? (
-              <Link href="/dashboard" onClick={() => setOpen(false)}>
-                <Button variant="primary" size="sm" className="w-full">Tableau de bord</Button>
-              </Link>
-            ) : (
-              <>
-                <Link href="/auth/login" onClick={() => setOpen(false)} className="flex-1">
-                  <Button variant="ghost" size="sm" className="w-full">Connexion</Button>
-                </Link>
-                <Link href="/auth/register" onClick={() => setOpen(false)} className="flex-1">
-                  <Button variant="primary" size="sm" className="w-full">Inscription</Button>
-                </Link>
-              </>
-            )}
+            <Link href="/auth/login" onClick={() => setOpen(false)} className="flex-1">
+              <Button variant="ghost" size="sm" className="w-full">Connexion</Button>
+            </Link>
+            <Link href="/auth/register" onClick={() => setOpen(false)} className="flex-1">
+              <Button variant="primary" size="sm" className="w-full">Inscription</Button>
+            </Link>
           </div>
         </div>
       )}

@@ -1,13 +1,20 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { X, Search } from "lucide-react";
 import toast from "react-hot-toast";
 
+// Type pour les résultats de recherche utilisateur
+interface SearchedUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
+
 export function AddRelationModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [relation, setRelation] = useState("parent");
   const [searchQuery, setSearchQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<SearchedUser[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const handleSearch = async () => {
@@ -63,7 +70,7 @@ export function AddRelationModal({ onClose, onSuccess }: { onClose: () => void; 
           </div>
           {results.length > 0 && (
             <div className="max-h-48 overflow-y-auto space-y-2">
-              {results.map((user: any) => (
+              {results.map((user) => (
                 <div key={user.id} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
                   <span className="text-text">{user.firstName} {user.lastName}</span>
                   <Button onClick={() => handleAdd(user.id)} size="sm" disabled={submitting}>Ajouter</Button>

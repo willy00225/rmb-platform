@@ -40,21 +40,33 @@ export default function EventCheckInPage() {
 
   return (
     <div className="space-y-8 animate-fadeInUp">
-      <h1 className="text-3xl font-display font-bold text-text">Check-in événement</h1>
+      <h1 className="text-3xl font-display font-bold text-text">
+        Check-in événement
+      </h1>
       <div className="card-premium p-6">
         <p className="text-text-secondary mb-4">
           Scannez le QR code de la carte de membre pour enregistrer sa présence.
         </p>
         {lastMember && (
-          <div className="flex items-center gap-2 text-green-600 mb-4">
+          <div className="flex items-center gap-2 text-green-600 dark:text-green-400 mb-4">
             <CheckCircle size={20} /> {lastMember}
           </div>
         )}
-        <Button onClick={() => setScanning(true)} variant="primary" disabled={checkingIn}>
-          {checkingIn ? <Loader2 className="animate-spin" size={18} /> : "Scanner un QR code"}
+        <Button
+          onClick={() => setScanning(true)}
+          variant="primary"
+          disabled={checkingIn}
+        >
+          {checkingIn ? (
+            <Loader2 className="animate-spin" size={18} />
+          ) : (
+            "Scanner un QR code"
+          )}
         </Button>
       </div>
-      {scanning && <QRScanner onScan={handleScan} onClose={() => setScanning(false)} />}
+      {scanning && (
+        <QRScanner onScan={handleScan} onClose={() => setScanning(false)} />
+      )}
     </div>
   );
 }

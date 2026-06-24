@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Session } from "next-auth";
 import {
@@ -13,8 +13,8 @@ import { StreamChat, Channel as StreamChannel } from "stream-chat";
 import "stream-chat-react/dist/css/index.css";
 import { Send, Mic, X } from "lucide-react";
 
-// ─── Input personnalisé avec notes vocales ───
-function CustomMessageInput({ channel }: { channel: StreamChannel }) {
+// ─── Input personnalisé avec notes vocales (exporté) ───
+export function CustomMessageInput({ channel }: { channel: StreamChannel }) {
   const [text, setText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -195,7 +195,7 @@ export function ChatView({
       members: [session.user.id],
     });
     generalChannel.watch().then(() => {
-      if (!channelId) generalChannel.update({ name: "Général" } as any);
+      if (!channelId) generalChannel.update({ name: "Général" } as Record<string, unknown>);
       setChannel(generalChannel);
       setLoading(false);
     });

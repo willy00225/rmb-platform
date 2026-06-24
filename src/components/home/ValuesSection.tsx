@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { Heart, Users, Globe, Leaf } from "lucide-react";
 
 const values = [

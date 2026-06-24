@@ -8,10 +8,12 @@ import { addXp } from "@/lib/xp";
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+
+  const { id: postId } = await params;
 
   // ✅ Vérification KYC (ajoutée)
   const user = await prisma.user.findUnique({
@@ -37,7 +39,7 @@ export async function POST(
   const comment = await prisma.comment.create({
     data: {
       content,
-      postId: params.id,
+      postId,
       userId: session.user.id,
     },
     include: {
@@ -51,7 +53,7 @@ export async function POST(
 
   // Notification à l'auteur du post (sauf si c'est lui-même)
   const post = await prisma.post.findUnique({
-    where: { id: params.id },
+    where: { id: postId },
     select: { userId: true },
   });
   if (post && post.userId !== session.user.id) {

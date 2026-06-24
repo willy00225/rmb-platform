@@ -1,9 +1,17 @@
-"use client";
+﻿"use client";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Medal } from "lucide-react";
 
+interface LeaderboardMember {
+  id: string;
+  firstName: string;
+  lastName: string;
+  level: number;
+  xp: number;
+}
+
 export default function LeaderboardPage() {
-  const { data: members = [], isLoading } = useQuery({
+  const { data: members = [], isLoading } = useQuery<LeaderboardMember[]>({
     queryKey: ["leaderboard"],
     queryFn: () => fetch("/api/leaderboard").then(res => res.json()),
   });
@@ -15,7 +23,7 @@ export default function LeaderboardPage() {
         <Loader2 className="animate-spin text-primary mx-auto mt-10" size={32} />
       ) : (
         <div className="card-premium overflow-hidden !p-0">
-          {members.map((m: any, idx: number) => (
+          {members.map((m, idx) => (
             <div
               key={m.id}
               className="flex items-center gap-4 p-4 border-b border-border dark:border-white/10 last:border-0"

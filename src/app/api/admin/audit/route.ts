@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   const actionFilter = url.searchParams.get("action") || ""; // ex: "USER_UPDATED"
   const search = url.searchParams.get("search") || ""; // recherche dans entityId ou admin name
 
-  const where: any = {};
+  const where: Record<string, unknown> = {};
   if (actionFilter) where.action = actionFilter;
   if (search) {
     where.OR = [

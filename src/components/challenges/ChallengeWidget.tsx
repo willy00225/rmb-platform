@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState } from "react";
 import { ProgressBar } from "@/components/ui/ProgressBar"; // nous allons le créer
 import { Trophy } from "lucide-react";

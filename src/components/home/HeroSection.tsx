@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
@@ -15,7 +15,7 @@ export function HeroSection() {
         >
           <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-bold text-text leading-tight break-words">
             Bienvenue sur le <span className="text-primary">Réseau Mondial</span> des{" "}
-            <span className="text-secondary">Bétés</span>
+            <span className="text-secondary">Bhétés</span>
           </h1>
           <p className="mt-4 md:mt-6 text-sm sm:text-base md:text-xl text-text-secondary max-w-3xl mx-auto">
             Unis par nos racines, engagés pour notre avenir.

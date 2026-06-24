@@ -5,9 +5,11 @@ import { updateChallenges } from "@/lib/challenges";
 import { checkAndAwardBadges } from "@/lib/badges";
 import { addXp } from "@/lib/xp";
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+
+  const { id: eventId } = await params;
 
   // ✅ Vérification KYC
   const user = await prisma.user.findUnique({
@@ -22,12 +24,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   const existing = await prisma.participation.findFirst({
-    where: { eventId: params.id, userId: session.user.id },
+    where: { eventId, userId: session.user.id },
   });
   if (existing) return NextResponse.json({ error: "Déjà inscrit" }, { status: 400 });
 
   const participation = await prisma.participation.create({
-    data: { eventId: params.id, userId: session.user.id },
+    data: { eventId, userId: session.user.id },
   });
 
   await updateChallenges("registrations");

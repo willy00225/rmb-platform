@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect } from "react";
 import { Phone, Video } from "lucide-react";
 import { CallModal } from "./CallModal";

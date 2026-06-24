@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Button } from "@/components/ui/Button";
@@ -22,7 +22,7 @@ export function QRScanner({ onScan, onClose }: { onScan: (userId: string) => voi
         },
         () => {} // ignore les erreurs de scan
       )
-      .catch((err) => setError("Impossible d’accéder à la caméra : " + err.message));
+      .catch((err) => setError("Impossible d'accéder à la caméra : " + err.message));
 
     return () => {
       scanner.stop().catch(() => {});

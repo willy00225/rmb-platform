@@ -1,4 +1,4 @@
-const requestCounts = new Map<string, { count: number; resetTime: number }>();
+﻿const requestCounts = new Map<string, { count: number; resetTime: number }>();
 
 // Nettoie les entrées expirées toutes les 60 secondes
 setInterval(() => {

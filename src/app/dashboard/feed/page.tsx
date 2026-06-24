@@ -1,10 +1,44 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 import { PostCard } from "@/components/community/PostCard";
 import { Send, ImageIcon } from "lucide-react";
 import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+// Interface correspondant à la structure attendue par PostCard
+interface Post {
+  id: string;
+  content: string;
+  mediaUrl?: string | null;
+  mediaType?: string | null;
+  createdAt: string;
+  userId: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    avatar?: string | null;
+    isPremium?: boolean;
+  };
+  comments: Comment[];
+  likes: { userId: string }[];
+  sharedPost?: Post | null;
+}
+
+interface Comment {
+  id: string;
+  content: string;
+  createdAt: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    avatar?: string | null;
+    isPremium?: boolean;
+  };
+  userId: string;
+}
 
 export default function FeedPage() {
   const { data: session } = useSession();
@@ -14,8 +48,8 @@ export default function FeedPage() {
   const [mediaType, setMediaType] = useState<string | null>(null);
   const [sharedPostId, setSharedPostId] = useState<string | null>(null);
 
-  // Récupération des posts
-  const { data: posts = [], isLoading } = useQuery({
+  // Récupération des posts typée
+  const { data: posts = [], isLoading } = useQuery<Post[]>({
     queryKey: ["posts"],
     queryFn: () => fetch("/api/posts").then(res => res.json()),
   });
@@ -31,7 +65,7 @@ export default function FeedPage() {
       if (!res.ok) throw new Error("Erreur de publication");
       return res.json();
     },
-    onSuccess: (newPostData) => {
+    onSuccess: () => {
       toast.success("Publication créée !");
       setNewPost("");
       setMediaUrl(null);
@@ -54,16 +88,16 @@ export default function FeedPage() {
 
   return (
     <div className="space-y-6 animate-fadeInUp">
-      <h1 className="text-3xl font-display font-bold text-text">Fil d’actualité</h1>
+      <h1 className="text-3xl font-display font-bold text-text">Fil d'actualité</h1>
 
       {/* Zone de publication */}
-      <div className="rounded-[var(--radius-card)] bg-white border border-border shadow-[var(--shadow-card)] p-6">
+      <div className="rounded-[var(--radius-card)] bg-white dark:bg-surface border border-border dark:border-white/10 shadow-[var(--shadow-card)] p-6">
         <textarea
           value={newPost}
           onChange={(e) => setNewPost(e.target.value)}
           placeholder="Partagez une nouvelle, une pensée..."
           rows={3}
-          className="w-full resize-none rounded-xl bg-gray-50 border border-border px-4 py-3 text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
+          className="w-full resize-none rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 px-4 py-3 text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
         />
         <div className="flex items-center justify-between mt-3">
           <div className="flex items-center gap-4">
@@ -110,8 +144,14 @@ export default function FeedPage() {
         ) : posts.length === 0 ? (
           <p className="text-text-secondary italic">Aucune publication pour le moment. Soyez le premier à poster !</p>
         ) : (
-          posts.map((post: any) => (
-            <PostCard key={post.id} post={post} currentUserId={session?.user?.id || ""} onShare={handleShare} />
+          posts.map((post) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              currentUserId={session?.user?.id || ""}
+              onShare={handleShare}
+              onDelete={() => queryClient.invalidateQueries({ queryKey: ["posts"] })}
+            />
           ))
         )}
       </div>

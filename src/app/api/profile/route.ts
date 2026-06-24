@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
@@ -19,7 +19,7 @@ export async function PATCH(req: Request) {
     newPassword 
   } = await req.json();
 
-  const updateData: any = {};
+  const updateData: Record<string, unknown> = {};
   if (firstName) updateData.firstName = firstName;
   if (lastName) updateData.lastName = lastName;
   if (city !== undefined) updateData.city = city;

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 
@@ -14,7 +14,7 @@ export function FooterSection() {
           <Link href="/auth/login" className="hover:text-primary">Connexion</Link>
         </nav>
         <p className="text-text-secondary text-xs break-words">
-          © {new Date().getFullYear()} Réseau Mondial des Bétés. Tous droits réservés.
+          © {new Date().getFullYear()} Réseau Mondial des Bhétés. Tous droits réservés.
         </p>
       </div>
     </footer>

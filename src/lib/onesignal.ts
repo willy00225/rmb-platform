@@ -1,4 +1,4 @@
-export async function sendPushNotification({
+﻿export async function sendPushNotification({
   headings,
   contents,
   includedSegments = ["Subscribed Users"],
@@ -9,7 +9,7 @@ export async function sendPushNotification({
   includedSegments?: string[];
   includeExternalUserIds?: string[];
 }) {
-  const payload: any = {
+  const payload: Record<string, unknown> = {
     app_id: process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID,
     headings,
     contents,

@@ -1,4 +1,4 @@
-export function kycApprovedEmail(
+﻿export function kycApprovedEmail(
   firstName: string,
   logoUrl: string,
   primaryColor = "#005A3A",

@@ -1,15 +1,28 @@
-"use client";
+﻿"use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EventCard } from "@/components/events/EventCard";
 import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
 import { Loader2, CalendarPlus } from "lucide-react";
 
+// Interface pour un événement (adaptée à EventCard)
+interface Event {
+  id: string;
+  title: string;
+  description?: string;
+  startDate: string;
+  endDate: string;
+  location?: string;
+  imageUrl?: string;
+  organizer: { firstName: string; lastName: string };
+  _count: { participations: number };
+}
+
 export default function EventsPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
 
-  const { data: events = [], isLoading, refetch } = useQuery({
+  const { data: events = [], isLoading } = useQuery<Event[]>({
     queryKey: ["events"],
     queryFn: () => fetch("/api/events").then(res => res.json()),
   });
@@ -47,7 +60,7 @@ export default function EventsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {events.map((event: any) => (
+          {events.map((event) => (
             <EventCard key={event.id} event={event} onRegister={() => handleRegister(event.id)} />
           ))}
         </div>

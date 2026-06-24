@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -13,6 +13,20 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 
+// Type pour un élément de l'historique des dons
+interface DonationItem {
+  id: string;
+  amount: number;
+  type: string;
+  createdAt: string;
+}
+
+// Type pour la réponse de l'API donations
+interface DonationData {
+  donations: DonationItem[];
+  total: number;
+}
+
 export default function DonationsPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
@@ -22,7 +36,7 @@ export default function DonationsPage() {
   const [amount, setAmount] = useState(5000);
 
   // Requête pour les dons et le total
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<DonationData>({
     queryKey: ["donations"],
     queryFn: () => fetch("/api/donations").then(res => res.json()),
   });
@@ -208,7 +222,7 @@ export default function DonationsPage() {
           <p className="text-text-secondary italic">Aucun don pour le moment.</p>
         ) : (
           <ul className="space-y-3">
-            {donations.map((d: any, idx: number) => (
+            {donations.map((d, idx) => (
               <li key={d.id || idx} className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10">
                 <div>
                   <span className="text-text-secondary text-sm">

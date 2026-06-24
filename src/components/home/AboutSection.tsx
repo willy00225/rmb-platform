@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { motion } from "framer-motion";
 
 export function AboutSection() {
@@ -10,15 +10,15 @@ export function AboutSection() {
             Qui sommes-nous ?
           </h2>
           <p className="mt-4 text-sm md:text-base text-text-secondary max-w-3xl mx-auto break-words">
-            Le Réseau Mondial des Bétés est une association apolitique à but non lucratif qui rassemble
-            les filles et fils Bétés du monde entier autour de valeurs de solidarité, de développement
+            Le Réseau Mondial des Bhétés est une association apolitique à but non lucratif qui rassemble
+            les filles et fils Bhétés du monde entier autour de valeurs de solidarité, de développement
             et de préservation culturelle.
           </p>
         </div>
         <div className="grid gap-6 md:grid-cols-3">
           {[
-            { title: "Notre mission", text: "Créer un espace d'échange, d'entraide et de promotion de la culture Bété." },
-            { title: "Notre vision", text: "Devenir le carrefour incontournable de la diaspora Bété." },
+            { title: "Notre mission", text: "Créer un espace d'échange, d'entraide et de promotion de la culture Bhété." },
+            { title: "Notre vision", text: "Devenir le carrefour incontournable de la diaspora Bhété." },
             { title: "Nos valeurs", text: "Unité, Respect, Solidarité, Excellence, Transmission." },
           ].map((item) => (
             <div key={item.title} className="bg-white dark:bg-bkg rounded-2xl border border-border p-6 shadow-sm">

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { sendPushNotification } from "@/lib/onesignal";
 
 export async function POST(req: Request) {

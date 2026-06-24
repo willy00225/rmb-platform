@@ -1,4 +1,4 @@
-export function kycRejectedEmail(
+﻿export function kycRejectedEmail(
   firstName: string,
   reason: string,
   logoUrl: string,

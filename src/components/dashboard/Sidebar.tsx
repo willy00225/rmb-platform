@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -28,7 +28,7 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 
 const navItems = [
   { href: "/dashboard", label: "Accueil", icon: LayoutDashboard },
-  { href: "/dashboard/feed", label: "Fil d’actu", icon: Newspaper },
+  { href: "/dashboard/feed", label: "Fil d'actu", icon: Newspaper },
   { href: "/dashboard/friends", label: "Amis", icon: Users },
   { href: "/dashboard/events", label: "Événements", icon: CalendarDays },
   { href: "/dashboard/donations", label: "Dons", icon: Heart },

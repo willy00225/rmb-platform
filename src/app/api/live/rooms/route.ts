@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { StreamChat } from "stream-chat";
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   });
   await channel.create();
   // Mettre à jour le nom après coup (propriété non autorisée dans le 3e argument)
-  await channel.update({ name: title } as any);
+  await channel.update({ name: title } as Record<string, unknown>);
 
   // Sauvegarder le live
   const live = await prisma.live.create({

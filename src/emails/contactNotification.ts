@@ -1,4 +1,4 @@
-export function contactNotificationEmail(
+﻿export function contactNotificationEmail(
   senderName: string,
   senderEmail: string,
   message: string,

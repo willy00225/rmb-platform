@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
@@ -9,8 +9,17 @@ export async function GET() {
       startDate: { lte: now },
       endDate: { gte: now },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { priority: "desc" },   // ← priorité
+    select: {
+      id: true,
+      title: true,
+      imageUrl: true,
+      mediaType: true,
+      link: true,
+      priority: true,
+      startDate: true,
+      endDate: true,
+    },
   });
-  // Tous les champs scalaires du modèle Event, y compris mediaType, sont automatiquement retournés
   return NextResponse.json(spots);
 }

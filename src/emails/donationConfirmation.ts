@@ -1,4 +1,4 @@
-export function donationConfirmationEmail(
+﻿export function donationConfirmationEmail(
   firstName: string,
   amount: number,
   logoUrl: string,

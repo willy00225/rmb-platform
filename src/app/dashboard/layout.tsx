@@ -1,7 +1,7 @@
-"use client";
-import { useState } from "react";
+﻿"use client";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { MobileNav } from "@/components/dashboard/MobileNav";
@@ -24,8 +24,9 @@ import { SearchBar } from "@/components/search/SearchBar";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { DesktopHeader } from "@/components/dashboard/DesktopHeader";
 import { RightSidebar } from "@/components/dashboard/RightSidebar";
+import { DashboardProviders } from "@/components/DashboardProviders";
 
-// ─── MobileHeader (conservé à l'identique) ────
+// ─── MobileHeaderInline ────
 function MobileHeaderInline() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
@@ -197,10 +198,11 @@ function KycWarningBanner() {
     </div>
   );
 }
-// ───────────────────────────────────────────────────────────────
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+// ─── Composant interne avec tous les hooks et le JSX ─────────────────
+function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
+  const router = useRouter();
   const [storyUserId, setStoryUserId] = useState<string | null>(null);
   const pathname = usePathname();
 
@@ -211,7 +213,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isKycVerified = kycLevel === "ID_VERIFIED" || kycLevel === "AMBASSADOR";
   const isAdmin = session.user?.role === "ADMIN" || session.user?.role === "SUPER_ADMIN";
 
-  // Pages qui ne nécessitent pas de KYC complet
   const exemptedPaths = [
     "/dashboard/kyc",
     "/dashboard/profile",
@@ -221,45 +222,54 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isExempted = exemptedPaths.some(p => pathname.startsWith(p)) || (pathname.startsWith("/dashboard/admin") && isAdmin);
   const showKycBanner = !isKycVerified && !isExempted;
 
+  // Gestionnaire de clic sur les stories
+  const handleStoryClick = (userId: string) => {
+    if (userId === "me") {
+      router.push("/dashboard/stories/new");
+    } else {
+      setStoryUserId(userId);
+    }
+  };
+
   return (
-    <ChatProvider>
-      <div className="min-h-screen bg-bkg overflow-x-hidden">
-        {/* Barre supérieure desktop */}
-        <DesktopHeader />
-
-        {/* Sidebar gauche (sans bordure) */}
-        <Sidebar />
-
-        {/* Colonne centrale avec ombre flottante */}
-        <div className="md:pl-60 lg:pr-80">
-          <MobileHeaderInline />
-
-          <main className="pt-16 md:pt-14 pb-24 md:pb-0 min-h-screen">
-            <div className="max-w-3xl mx-auto px-4 py-4 md:px-8 md:py-6">
-              <div className="bg-white dark:bg-surface rounded-2xl shadow-2xl min-h-screen p-4 md:p-6">
-                <StoriesBar onStoryClick={(userId) => setStoryUserId(userId)} />
-
-                {/* Bandeau KYC */}
-                {showKycBanner && <KycWarningBanner />}
-
-                {children}
-              </div>
+    <div className="min-h-screen bg-bkg overflow-x-hidden">
+      <DesktopHeader />
+      <Sidebar />
+      <div className="md:pl-60 lg:pr-80">
+        <MobileHeaderInline />
+        <main className="pt-16 md:pt-14 pb-24 md:pb-0 min-h-screen">
+          <div className="max-w-3xl mx-auto px-4 py-4 md:px-8 md:py-6">
+            <div className="bg-white dark:bg-surface rounded-2xl shadow-2xl min-h-screen p-4 md:p-6">
+              <StoriesBar onStoryClick={handleStoryClick} />
+              {showKycBanner && <KycWarningBanner />}
+              {children}
             </div>
-          </main>
-
-          <MobileNav />
-        </div>
-
-        {/* Colonne droite (sans bordure) */}
-        <RightSidebar />
-
-        <FloatingChat session={session} />
-        <SpotOverlay />
-        <NotificationPrompt />
-        <OneSignalRegistrar />
-
-        {storyUserId && <StoryViewer userId={storyUserId} onClose={() => setStoryUserId(null)} />}
+          </div>
+        </main>
+        <MobileNav />
       </div>
-    </ChatProvider>
+      <RightSidebar />
+      <FloatingChat session={session} />
+      <SpotOverlay />
+      <NotificationPrompt />
+      <OneSignalRegistrar />
+      {storyUserId && <StoryViewer userId={storyUserId} onClose={() => setStoryUserId(null)} />}
+    </div>
+  );
+}
+
+// ─── DashboardLayout principal avec garde et providers ─────────────
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  if (!mounted) return null;
+
+  return (
+    <DashboardProviders>
+      <ChatProvider>
+        <DashboardInnerLayout>{children}</DashboardInnerLayout>
+      </ChatProvider>
+    </DashboardProviders>
   );
 }

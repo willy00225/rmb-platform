@@ -1,11 +1,17 @@
-// src/app/dashboard/page.tsx
+﻿// src/app/dashboard/page.tsx
 "use client";
+
+export const dynamic = 'force-dynamic'; // Désactive le prérendu
+
 import { useState } from "react";
 import { PostCard } from "@/components/community/PostCard";
 import { Send, ImageIcon } from "lucide-react";
 import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+// Récupération du type de la prop "post" à partir du composant PostCard
+type Post = React.ComponentProps<typeof PostCard>['post'];
 
 export default function DashboardPage() {
   const { data: session } = useSession();
@@ -15,15 +21,14 @@ export default function DashboardPage() {
   const [mediaType, setMediaType] = useState<string | null>(null);
   const [sharedPostId, setSharedPostId] = useState<string | null>(null);
 
-  // Récupération des posts avec actualisation automatique
-  const { data: posts = [], isLoading } = useQuery({
+  // Récupération des posts avec typage automatique
+  const { data: posts = [], isLoading } = useQuery<Post[]>({
     queryKey: ["posts"],
     queryFn: () => fetch("/api/posts").then(res => res.json()),
-    refetchOnWindowFocus: true,   // actualise quand on revient sur l'onglet
-    staleTime: 1000 * 60,         // considère les données fraîches pendant 1 minute
+    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60,
   });
 
-  // Mutation de création de post
   const createPostMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch("/api/posts", {
@@ -57,7 +62,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-fadeInUp">
-      <h1 className="text-3xl font-display font-bold text-text hidden md:block">Fil d’actualité</h1>
+      <h1 className="text-3xl font-display font-bold text-text hidden md:block">Fil d'actualité</h1>
 
       {/* Zone de publication */}
       <div className="rounded-[var(--radius-card)] bg-white dark:bg-surface border border-border shadow-[var(--shadow-card)] p-6">
@@ -113,8 +118,14 @@ export default function DashboardPage() {
         ) : posts.length === 0 ? (
           <p className="text-text-secondary italic">Aucune publication pour le moment. Soyez le premier à poster !</p>
         ) : (
-          posts.map((post: any) => (
-            <PostCard key={post.id} post={post} currentUserId={session?.user?.id || ""} onShare={handleShare} />
+          posts.map((post) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              currentUserId={session?.user?.id || ""}
+              onShare={handleShare}
+              onDelete={() => queryClient.invalidateQueries({ queryKey: ["posts"] })}
+            />
           ))
         )}
       </div>

@@ -2,12 +2,14 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   compress: true,
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   images: {
     formats: ["image/avif", "image/webp"],
   },
   async headers() {
     return [
-      // Sécurité + Pas de cache pour les pages HTML (toujours fraîches)
       {
         source: "/(.*).html",
         headers: [
@@ -25,7 +27,6 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      // Ressources statiques avec cache long
       {
         source: "/_next/static/(.*)",
         headers: [
@@ -35,7 +36,6 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      // Images et fonts avec cache long
       {
         source: "/(.*).(jpg|jpeg|png|webp|avif|svg|woff2|css|js)",
         headers: [

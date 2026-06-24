@@ -1,4 +1,4 @@
-// src/app/dashboard/profile/page.tsx
+﻿// src/app/dashboard/profile/page.tsx
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { MemberCard } from "@/components/dashboard/MemberCard";
@@ -8,6 +8,8 @@ import { notFound } from "next/navigation";
 import { ChallengeWidget } from "@/components/challenges/ChallengeWidget";
 import { LiveWidget } from "@/components/live/LiveWidget";
 import { RadioWidget } from "@/components/radio/RadioWidget";
+
+export const dynamic = 'force-dynamic'; // Désactive le prérendu pour cette page
 
 export default async function ProfilePage() {
   const session = await auth();

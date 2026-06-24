@@ -4,12 +4,18 @@ import { notFound, redirect } from "next/navigation";
 import { LivePlayer } from "@/components/live/LivePlayer";
 import { LiveChat } from "@/components/live/LiveChat";
 
-export default async function LiveRoomPage({ params }: { params: { id: string } }) {
+export default async function LiveRoomPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/auth/login");
 
+  const { id } = await params;
+
   const live = await prisma.live.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { host: { select: { firstName: true, lastName: true } } },
   });
   if (!live) notFound();

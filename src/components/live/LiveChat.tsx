@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState } from "react";
 import { Session } from "next-auth";
 import { StreamChat, Channel as StreamChannel } from "stream-chat";

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -10,7 +10,7 @@ export async function GET(req: Request) {
     const page = parseInt(url.searchParams.get("page") || "1");
     const limit = 12;
 
-    const where: any = { status: "active" };
+    const where: Record<string, unknown> = { status: "active" };
     if (category) where.category = category;
     if (search) {
       where.OR = [
@@ -31,10 +31,11 @@ export async function GET(req: Request) {
     ]);
 
     return NextResponse.json({ products, total, page, totalPages: Math.ceil(total / limit) });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = (error as Error).message || "Erreur inconnue";
     console.error("Erreur GET /api/marketplace:", error);
     return NextResponse.json(
-      { error: "Erreur serveur", details: error.message },
+      { error: "Erreur serveur", details: message },
       { status: 500 }
     );
   }
@@ -78,10 +79,11 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(product, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = (error as Error).message || "Erreur inconnue";
     console.error("Erreur POST /api/marketplace:", error);
     return NextResponse.json(
-      { error: "Erreur serveur", details: error.message },
+      { error: "Erreur serveur", details: message },
       { status: 500 }
     );
   }

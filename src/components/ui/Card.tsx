@@ -1,4 +1,4 @@
-export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+﻿export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={`rounded-[var(--radius-card)] bg-white border border-border shadow-[var(--shadow-card)] ${className}`}>
       {children}

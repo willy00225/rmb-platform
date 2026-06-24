@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendPushNotification } from "@/lib/onesignal";
 import { sendEmail } from "@/lib/email";
 import { donationConfirmationEmail } from "@/emails/donationConfirmation";
+import { orderConfirmationEmail } from "@/emails/orderConfirmation"; // ✅ ajout de l'import manquant
 import { updateChallenges } from "@/lib/challenges";
 import { checkAndAwardBadges } from "@/lib/badges";
 import { addXp } from "@/lib/xp";
@@ -12,12 +13,12 @@ export async function POST(req: Request) {
 
   if (body.status === "ACCEPTED") {
     let userId: string | null = null;
-    let metadata: any = {};
+    let metadata: Record<string, any> = {};
     const amount = parseFloat(body.amount);
 
     try {
       metadata = JSON.parse(body.metadata);
-      userId = metadata.userId;
+      userId = metadata.userId ?? null;
     } catch {}
 
     if (!userId) {
@@ -58,7 +59,6 @@ export async function POST(req: Request) {
         includeExternalUserIds: [userId],
       });
 
-      // 📧 Email de confirmation de don
       const donor = await prisma.user.findUnique({
         where: { id: userId },
         select: { email: true, firstName: true },
@@ -193,6 +193,18 @@ export async function POST(req: Request) {
           },
           includeExternalUserIds: [sellerId],
         });
+
+        const buyer = await prisma.user.findUnique({
+          where: { id: buyerId },
+          select: { email: true, firstName: true },
+        });
+        if (buyer?.email) {
+          await sendEmail({
+            to: buyer.email,
+            subject: "Confirmation de commande – RMB Connect",
+            html: orderConfirmationEmail(buyer.firstName, product.title, amount, logoUrl, primaryColor, secondaryColor),
+          }).catch(err => console.error("Erreur envoi email commande :", err));
+        }
 
         await prisma.marketplaceProduct.update({
           where: { id: productId },

@@ -1,10 +1,11 @@
-"use client";
-import { useEffect, useState } from "react";
+﻿"use client";
+import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, X, Loader2 } from "lucide-react";
 import { ChatView } from "@/components/chat/ChatView";
 import { Session } from "next-auth";
 import { StreamChat } from "stream-chat";
+import type { Event } from "stream-chat";
 import { useChat } from "@/contexts/ChatContext";
 
 export function FloatingChat({ session }: { session: Session }) {
@@ -12,16 +13,24 @@ export function FloatingChat({ session }: { session: Session }) {
   const [chatClient, setChatClient] = useState<StreamChat | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const hasConnected = useRef(false); // ✅ empêche les doubles connexions
 
   // Connexion UNIQUE au montage du composant
   useEffect(() => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id || hasConnected.current) return;
 
     const connect = async () => {
+      if (!session.user?.id) return;
+      hasConnected.current = true;
       setConnecting(true);
       try {
         const res = await fetch("/api/chat/token");
         const { token } = await res.json();
+        if (!token) {
+          console.warn("Token chat vide, connexion annulée.");
+          hasConnected.current = false; // autorise un nouvel essai en cas d'échec
+          return;
+        }
         const client = StreamChat.getInstance(process.env.NEXT_PUBLIC_STREAM_API_KEY!);
         await client.connectUser(
           { id: session.user.id, name: session.user.name ?? "Membre" },
@@ -30,6 +39,7 @@ export function FloatingChat({ session }: { session: Session }) {
         setChatClient(client);
       } catch (err) {
         console.error("Échec de connexion au chat :", err);
+        hasConnected.current = false; // autorise un nouvel essai en cas d'échec
       } finally {
         setConnecting(false);
       }
@@ -37,28 +47,37 @@ export function FloatingChat({ session }: { session: Session }) {
 
     connect();
 
+    // Cleanup lors du démontage du composant (l'utilisateur quitte la page)
     return () => {
-      if (chatClient) chatClient.disconnectUser();
+      if (chatClient) {
+        chatClient.disconnectUser();
+        hasConnected.current = false;
+      }
     };
-  }, [session]);
+  }, [session, chatClient]); // chatClient ajouté pour le cleanup
 
   // Écouter les nouveaux messages (si besoin pour le badge)
   useEffect(() => {
     if (!chatClient) return;
-    const handler = (event: any) => {
-      if (!open && event.message?.user?.id !== session.user?.id) {
+    const handler = (event: Event) => {
+      const msg = event as Event & {
+        message?: {
+          user?: { id: string; name?: string };
+          text?: string;
+        };
+      };
+      if (!open && msg.message?.user?.id !== session.user?.id) {
         setUnreadCount(prev => prev + 1);
 
-        // Notification push
         fetch("/api/notify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId: session.user.id,
-            title: event.message.user?.name || "Nouveau message",
-            message: event.message.text || "Vous avez reçu un message.",
+            title: msg.message?.user?.name || "Nouveau message",
+            message: msg.message?.text || "Vous avez reçu un message.",
           }),
-        }).catch(() => {}); // silencieux en cas d'erreur
+        }).catch(() => {});
       }
     };
     chatClient.on("message.new", handler);

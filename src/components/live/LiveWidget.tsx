@@ -1,10 +1,20 @@
-"use client";
+﻿"use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Radio } from "lucide-react";
 
+// Type correspondant aux données d'une room en direct
+interface LiveRoom {
+  id: string | number;
+  title: string;
+  host: {
+    firstName: string;
+    lastName: string;
+  };
+}
+
 export function LiveWidget() {
-  const [lives, setLives] = useState<any[]>([]);
+  const [lives, setLives] = useState<LiveRoom[]>([]);
 
   useEffect(() => {
     fetch("/api/live/rooms")

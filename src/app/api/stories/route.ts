@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { sendPushNotification } from "@/lib/onesignal";
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
     f.requesterId === session.user.id ? f.addresseeId : f.requesterId
   );
 
-  const userName = session.user.name || "Quelqu’un";
+  const userName = session.user.name || "Quelqu'un";
   for (const friendId of friendIds) {
     await sendPushNotification({
       headings: { fr: "Nouvelle story 📸" },

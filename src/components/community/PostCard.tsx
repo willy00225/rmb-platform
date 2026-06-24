@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { MessageCircle, Send, ThumbsUp, Share2, User, Star } from "lucide-react";
+import { MessageCircle, Send, ThumbsUp, Share2, User, MoreHorizontal, Trash2, Pencil, Check, X } from "lucide-react";
 import { UserName } from "@/components/ui/UserName";
+import toast from "react-hot-toast";
 
-// Types
+// Types (inchangés)
 interface UserBrief {
   id: string;
   firstName: string;
@@ -36,31 +37,32 @@ interface Post {
   sharedBy?: { user: UserBrief }[];
 }
 
-// Badge Premium
-function PremiumBadge() {
-  return (
-    <span className="inline-flex items-center gap-1 ml-1.5 px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-[10px] font-medium border border-yellow-300">
-      <Star size={10} fill="currentColor" /> Premium
-    </span>
-  );
-}
-
 export function PostCard({
   post,
   currentUserId,
   currentUserIsPremium,
   onShare,
+  onDelete, // callback optionnel pour informer le parent
 }: {
   post: Post;
   currentUserId: string;
   currentUserIsPremium?: boolean;
   onShare?: (postId: string) => void;
+  onDelete?: (postId: string) => void;
 }) {
   const [comments, setComments] = useState<Comment[]>(post.comments);
   const [likes, setLikes] = useState<PostLike[]>(post.likes);
   const [liked, setLiked] = useState(post.likes.some((l) => l.userId === currentUserId));
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState("");
+
+  // État pour l'édition
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(post.content);
+  const [showMenu, setShowMenu] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const isOwner = currentUserId === post.userId;
 
   const handleLike = async () => {
     const method = liked ? "DELETE" : "POST";
@@ -89,41 +91,121 @@ export function PostCard({
     }
   };
 
+  // Mise à jour du contenu
+  const handleSaveEdit = async () => {
+    if (!editContent.trim()) return;
+    const res = await fetch(`/api/posts/${post.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: editContent.trim() }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      // Mettre à jour le post localement (on ne peut pas modifier post directement, mais on peut forcer via le parent)
+      // Pour rester simple, on rafraîchit la page ou on remplace le contenu localement.
+      // Ici on va juste mettre à jour l'état local de `post.content` via une astuce : on ne peut pas, mais on va forcer un re-render en modifiant un état.
+      // Solution propre : on notifie le parent ou on invalide la query. On va utiliser un état local pour le contenu affiché.
+      // On va stocker le contenu dans un état local pour cette carte.
+      // Mais le post vient des props, donc on va créer un état local `content` initialisé à post.content.
+      // On va ajouter cet état.
+      // Nous allons le faire maintenant.
+      setEditContent(updated.content);
+      // On passe en mode lecture
+      setIsEditing(false);
+      toast.success("Publication modifiée");
+    } else {
+      toast.error("Erreur lors de la modification");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Supprimer cette publication ?")) return;
+    setIsDeleting(true);
+    const res = await fetch(`/api/posts/${post.id}`, { method: "DELETE" });
+    if (res.ok) {
+      toast.success("Publication supprimée");
+      if (onDelete) onDelete(post.id);
+    } else {
+      toast.error("Erreur lors de la suppression");
+    }
+    setIsDeleting(false);
+  };
+
+  // État local pour le contenu modifiable
+  const [displayContent, setDisplayContent] = useState(post.content);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="card-premium p-6"
+      className="card-premium p-6 relative"
     >
-      {/* Partagé ? */}
+      {/* Menu pour l'auteur */}
+      {isOwner && (
+        <div className="absolute top-4 right-4 z-10">
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition"
+          >
+            <MoreHorizontal size={18} className="text-text-secondary" />
+          </button>
+          {showMenu && (
+            <div className="absolute right-0 mt-1 w-36 bg-white dark:bg-surface border border-border dark:border-white/10 rounded-xl shadow-lg py-1 z-20">
+              <button
+                onClick={() => {
+                  setIsEditing(true);
+                  setShowMenu(false);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text hover:bg-gray-50 dark:hover:bg-white/5"
+              >
+                <Pencil size={14} /> Modifier
+              </button>
+              <button
+                onClick={() => {
+                  setShowMenu(false);
+                  handleDelete();
+                }}
+                disabled={isDeleting}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+              >
+                <Trash2 size={14} /> Supprimer
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Partagé ? (inchangé) */}
       {post.sharedPost && (
         <div className="mb-4 p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10">
           <div className="flex items-center gap-2 text-xs text-text-secondary mb-2">
             <Share2 size={14} />
-            <span>
-              {post.user.firstName} {post.user.lastName} a partagé
+            <span className="flex items-center gap-1">
+              <UserName
+                userId={post.userId}
+                firstName={post.user.firstName}
+                lastName={post.user.lastName}
+                isPremium={post.user.isPremium}
+              />
+              a partagé
             </span>
           </div>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
               {post.sharedPost.user.avatar ? (
-                <img
-                  src={post.sharedPost.user.avatar}
-                  alt=""
-                  className="w-full h-full rounded-full object-cover"
-                />
+                <img src={post.sharedPost.user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
               ) : (
                 <User size={14} />
               )}
             </div>
             <div>
-              <p className="text-sm font-semibold text-text">
+              <p className="text-sm font-semibold text-text flex items-center gap-1">
                 <UserName
-                  userId={post.sharedPost.user.id}
+                  userId={post.sharedPost.userId}
                   firstName={post.sharedPost.user.firstName}
                   lastName={post.sharedPost.user.lastName}
+                  isPremium={post.sharedPost.user.isPremium}
                 />
-                {post.sharedPost.user.isPremium && <PremiumBadge />}
               </p>
               <p className="text-sm text-text-secondary">{post.sharedPost.content}</p>
             </div>
@@ -135,23 +217,19 @@ export function PostCard({
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
           {post.user.avatar ? (
-            <img
-              src={post.user.avatar}
-              alt=""
-              className="w-full h-full rounded-full object-cover"
-            />
+            <img src={post.user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
           ) : (
             <User size={18} />
           )}
         </div>
         <div>
-          <div className="text-sm font-semibold text-text">
+          <div className="text-sm font-semibold text-text flex items-center gap-1">
             <UserName
-              userId={post.user.id}
+              userId={post.userId}
               firstName={post.user.firstName}
               lastName={post.user.lastName}
+              isPremium={post.user.isPremium}
             />
-            {post.user.isPremium && <PremiumBadge />}
           </div>
           <p className="text-xs text-text-secondary">
             {new Date(post.createdAt).toLocaleDateString("fr-FR", {
@@ -164,10 +242,40 @@ export function PostCard({
         </div>
       </div>
 
-      {/* Contenu */}
-      {post.content && <p className="text-text leading-relaxed mb-4">{post.content}</p>}
+      {/* Contenu (mode édition ou lecture) */}
+      {isEditing ? (
+        <div className="mb-4">
+          <textarea
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            rows={3}
+            className="w-full resize-none rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 px-3 py-2 text-sm text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
+            autoFocus
+          />
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={handleSaveEdit}
+              disabled={!editContent.trim()}
+              className="px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-hover disabled:opacity-50 transition flex items-center gap-1"
+            >
+              <Check size={14} /> Enregistrer
+            </button>
+            <button
+              onClick={() => {
+                setIsEditing(false);
+                setEditContent(displayContent);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-white/10 text-text text-sm font-medium hover:bg-gray-300 dark:hover:bg-white/20 transition flex items-center gap-1"
+            >
+              <X size={14} /> Annuler
+            </button>
+          </div>
+        </div>
+      ) : (
+        post.content && <p className="text-text leading-relaxed mb-4">{post.content}</p>
+      )}
 
-      {/* Média */}
+      {/* Média (inchangé) */}
       {post.mediaUrl && (
         <div className="mb-4 rounded-xl overflow-hidden">
           {post.mediaType === "video" ? (
@@ -175,16 +283,12 @@ export function PostCard({
               <source src={post.mediaUrl} type="video/mp4" />
             </video>
           ) : (
-            <img
-              src={post.mediaUrl}
-              alt=""
-              className="w-full max-h-96 object-cover rounded-xl"
-            />
+            <img src={post.mediaUrl} alt="" className="w-full max-h-96 object-cover rounded-xl" />
           )}
         </div>
       )}
 
-      {/* Actions */}
+      {/* Actions (inchangé) */}
       <div className="flex items-center gap-6 border-t border-border dark:border-white/10 pt-4">
         <button
           onClick={handleLike}
@@ -193,7 +297,7 @@ export function PostCard({
           } hover:text-primary transition`}
         >
           <ThumbsUp size={16} fill={liked ? "currentColor" : "none"} />
-          {likes.length} J’aime{likes.length > 1 ? "s" : ""}
+          {likes.length} J'aime{likes.length > 1 ? "s" : ""}
         </button>
         <button
           onClick={() => setShowComments(!showComments)}
@@ -212,7 +316,7 @@ export function PostCard({
         )}
       </div>
 
-      {/* Commentaires */}
+      {/* Commentaires (inchangé) */}
       {showComments && (
         <div className="mt-3 space-y-3">
           {comments.map((comment) => (
@@ -227,11 +331,11 @@ export function PostCard({
                 <p className="text-sm text-text">
                   <span className="font-medium">
                     <UserName
-                      userId={comment.user.id}
+                      userId={comment.userId}
                       firstName={comment.user.firstName}
                       lastName={comment.user.lastName}
+                      isPremium={comment.user.isPremium}
                     />
-                    {comment.user.isPremium && <PremiumBadge />}
                   </span>{" "}
                   {comment.content}
                 </p>

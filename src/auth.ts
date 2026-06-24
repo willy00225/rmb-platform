@@ -13,7 +13,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: true, // requis en HTTPS
+        secure: process.env.NODE_ENV === "production", // true uniquement en prod
       },
     },
   },

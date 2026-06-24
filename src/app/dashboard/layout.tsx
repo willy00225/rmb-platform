@@ -25,8 +25,9 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 import { DesktopHeader } from "@/components/dashboard/DesktopHeader";
 import { RightSidebar } from "@/components/dashboard/RightSidebar";
 import { DashboardProviders } from "@/components/DashboardProviders";
+import { LoadingScreen } from "@/components/ui/LoadingScreen"; // ✅ Import du splash screen
 
-// ─── MobileHeaderInline ────
+// ─── MobileHeaderInline (inchangé) ────
 function MobileHeaderInline() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
@@ -176,7 +177,7 @@ function MobileHeaderInline() {
   );
 }
 
-// ─── Bandeau d'avertissement KYC ──────────────────────────────
+// ─── Bandeau d'avertissement KYC (inchangé) ──────────────────────────────
 function KycWarningBanner() {
   return (
     <div className="mb-6 p-4 rounded-xl bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 flex items-start gap-3">
@@ -263,7 +264,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
-  if (!mounted) return null;
+  if (!mounted) return <LoadingScreen />; // ✅ Splash screen au lieu de null
 
   return (
     <DashboardProviders>

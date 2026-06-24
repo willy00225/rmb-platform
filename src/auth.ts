@@ -8,12 +8,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   cookies: {
     sessionToken: {
-      name: "authjs.session-token",   // ← sans le préfixe __Secure-
+      name: "authjs.session-token",   // ✅ nom sans le préfixe __Secure-
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: false,                // ← non sécurisé pour test
+        secure: true,                 // ✅ sécurisé (HTTPS) pour la production
       },
     },
   },
@@ -27,7 +27,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async redirect({ url, baseUrl }) {
-      // Redirige toujours vers l'URL de production définie
       const productionUrl = process.env.NEXTAUTH_URL || baseUrl;
       if (url.startsWith("/")) return `${productionUrl}${url}`;
       else if (new URL(url).origin === productionUrl) return url;

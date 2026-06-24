@@ -8,13 +8,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   cookies: {
     sessionToken: {
-      name: `__Secure-authjs.session-token`,
+      name: "authjs.session-token",   // ← sans le préfixe __Secure-
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        // true en production (HTTPS), false en développement
-        secure: process.env.NODE_ENV === "production",
+        secure: false,                // ← non sécurisé pour test
       },
     },
   },
@@ -30,11 +29,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async redirect({ url, baseUrl }) {
       // Redirige toujours vers l'URL de production définie
       const productionUrl = process.env.NEXTAUTH_URL || baseUrl;
-      // Si l'url est relative, on la concatène à l'URL de production
       if (url.startsWith("/")) return `${productionUrl}${url}`;
-      // Si l'url est déjà sur le même domaine, on la laisse
       else if (new URL(url).origin === productionUrl) return url;
-      // Sinon, on redirige vers le dashboard
       return `${productionUrl}/dashboard`;
     },
     async jwt({ token, user }) {

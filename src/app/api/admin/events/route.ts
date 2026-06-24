@@ -29,8 +29,8 @@ export async function GET() {
       orderBy: { startDate: "asc" },
     });
 
-    // Transforme _count en participations pour une réponse plus claire
-    const result = events.map(({ _count, ...event }) => ({
+    // ✅ Correction : paramètre typé any pour éviter l'erreur TypeScript
+    const result = events.map(({ _count, ...event }: any) => ({
       ...event,
       participations: _count.participations,
     }));

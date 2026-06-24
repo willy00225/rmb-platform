@@ -74,7 +74,7 @@ export default async function ProfilePage() {
 
   const familyData = { parents, children, spouses, siblings };
 
-  const serializedPosts = user.posts.map((post) => ({
+  const serializedPosts = user.posts.map((post: any) => ({
     id: post.id,
     content: post.content,
     mediaUrl: post.mediaUrl,
@@ -87,7 +87,7 @@ export default async function ProfilePage() {
       lastName: post.user.lastName,
       avatar: post.user.avatar,
     },
-    comments: post.comments.map((c) => ({
+    comments: post.comments.map((c: any) => ({
       id: c.id,
       content: c.content,
       createdAt: c.createdAt.toISOString(),
@@ -99,7 +99,7 @@ export default async function ProfilePage() {
         avatar: c.user.avatar,
       },
     })),
-    likes: post.likes.map((l) => ({
+    likes: post.likes.map((l: any) => ({
       userId: l.userId,
       createdAt: l.createdAt.toISOString(),
     })),
@@ -200,7 +200,7 @@ export default async function ProfilePage() {
           <p className="text-text-secondary italic">Aucun badge pour le moment.</p>
         ) : (
           <div className="flex flex-wrap gap-4">
-            {user.badges.map((ub) => (
+            {user.badges.map((ub: any) => (
               <div key={ub.id} className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
                 <span className="text-2xl">{ub.badge.icon}</span>
                 <div>
@@ -220,7 +220,7 @@ export default async function ProfilePage() {
           <p className="text-text-secondary italic">Aucune publication pour le moment.</p>
         ) : (
           <div className="space-y-6">
-            {serializedPosts.map((post) => (
+            {serializedPosts.map((post: any) => (
               <PostCard key={post.id} post={post} currentUserId={session.user.id} />
             ))}
           </div>

@@ -1,7 +1,6 @@
 ﻿"use client";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, LogIn } from "lucide-react";
@@ -9,7 +8,6 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -26,17 +24,15 @@ export default function LoginPage() {
       return;
     }
     setLoading(true);
-    const result = await signIn("credentials", {
+    // ✅ Utiliser redirect: true pour que NextAuth gère la redirection et le cookie
+    await signIn("credentials", {
       email,
       password,
-      redirect: false,
+      redirect: true,
+      callbackUrl: "/dashboard",
     });
+    // Si erreur, rester sur la page (le signIn gère l'affichage de l'erreur)
     setLoading(false);
-    if (result?.error) {
-      toast.error("Email ou mot de passe incorrect.");
-    } else {
-      router.push("/dashboard");
-    }
   };
 
   return (

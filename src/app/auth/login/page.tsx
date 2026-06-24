@@ -13,7 +13,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Validation simple pour activer le bouton
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const canSubmit = emailValid && password.length > 0;
 
@@ -24,15 +23,18 @@ export default function LoginPage() {
       return;
     }
     setLoading(true);
-    // ✅ Utiliser redirect: true pour que NextAuth gère la redirection et le cookie
-    await signIn("credentials", {
+    const result = await signIn("credentials", {
       email,
       password,
-      redirect: true,
-      callbackUrl: "/dashboard",
+      redirect: false, // ← important : on gère la redirection nous-mêmes
     });
-    // Si erreur, rester sur la page (le signIn gère l'affichage de l'erreur)
     setLoading(false);
+    if (result?.error) {
+      toast.error("Email ou mot de passe incorrect.");
+    } else {
+      // ✅ Redirection manuelle vers le dashboard en utilisant le domaine actuel
+      window.location.href = "/dashboard";
+    }
   };
 
   return (
@@ -43,7 +45,6 @@ export default function LoginPage() {
         transition={{ duration: 0.8 }}
         className="w-full max-w-md"
       >
-        {/* Logo + titre */}
         <div className="text-center mb-10">
           <div className="flex justify-center mb-4">
             <img

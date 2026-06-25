@@ -16,7 +16,7 @@ import {
   Menu, Bell, X, Newspaper, Users, User, LayoutDashboard,
   CalendarDays, Heart, Shield, Radio, Trophy, Settings,
   HelpCircle, Store, GitBranch, Package, Sun, Moon,
-  AlertTriangle
+  AlertTriangle, ShieldCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -25,13 +25,14 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 import { DesktopHeader } from "@/components/dashboard/DesktopHeader";
 import { RightSidebar } from "@/components/dashboard/RightSidebar";
 import { DashboardProviders } from "@/components/DashboardProviders";
-import { LoadingScreen } from "@/components/ui/LoadingScreen"; // ✅ Import du splash screen
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 
-// ─── MobileHeaderInline (inchangé) ────
+// ─── MobileHeaderInline (corrigé pour afficher le lien admin) ────
 function MobileHeaderInline() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
+  const { data: session } = useSession(); // ✅ récupère la session pour le rôle
 
   const { data: unreadData } = useQuery({
     queryKey: ["unreadNotifications"],
@@ -39,6 +40,8 @@ function MobileHeaderInline() {
     refetchInterval: 30000,
   });
   const unreadCount = unreadData?.count || 0;
+
+  const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN";
 
   const menuLinks = [
     { href: "/dashboard", label: "Accueil", icon: LayoutDashboard },
@@ -137,6 +140,27 @@ function MobileHeaderInline() {
               <div className="px-4 py-3">
                 <SearchBar />
               </div>
+
+              {/* ✅ Lien Administration pour les admins (visible uniquement si admin) */}
+              {isAdmin && (
+                <div className="px-3 pb-2">
+                  <Link
+                    href="/dashboard/admin"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                      pathname.startsWith("/dashboard/admin")
+                        ? "bg-primary/10 text-primary"
+                        : "text-text-secondary hover:bg-gray-100 dark:hover:bg-white/5 hover:text-text"
+                    }`}
+                  >
+                    <ShieldCheck size={20} className={pathname.startsWith("/dashboard/admin") ? "text-primary" : "text-text-secondary"} />
+                    Administration
+                    {pathname.startsWith("/dashboard/admin") && (
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
+                    )}
+                  </Link>
+                </div>
+              )}
 
               <nav className="p-3 space-y-1">
                 {menuLinks.map((link) => {
@@ -264,7 +288,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
-  if (!mounted) return <LoadingScreen />; // ✅ Splash screen au lieu de null
+  if (!mounted) return <LoadingScreen />;
 
   return (
     <DashboardProviders>

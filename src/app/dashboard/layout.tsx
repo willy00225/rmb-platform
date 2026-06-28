@@ -255,11 +255,7 @@ function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
 
   // Gestionnaire de clic sur les stories
   const handleStoryClick = (userId: string) => {
-    if (userId === "me") {
-      router.push("/dashboard/stories/new");
-    } else {
-      setStoryUserId(userId);
-    }
+    setStoryUserId(userId);
   };
 
   // ✅ Espace supplémentaire sous les pages admin pour éviter le chevauchement du MobileNav

@@ -1,8 +1,9 @@
 ﻿"use client";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, ChevronRight, Heart, Send, Smile } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Heart, Send, Smile, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
 interface Story {
@@ -19,6 +20,7 @@ interface StoryViewerProps {
 
 export function StoryViewer({ userId, onClose }: StoryViewerProps) {
   const { data: session } = useSession();
+  const router = useRouter();
   const [stories, setStories] = useState<Story[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [liked, setLiked] = useState(false);
@@ -26,7 +28,7 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
   const [reply, setReply] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const remainingTimeRef = useRef(5000);
   const startTimeRef = useRef(Date.now());
@@ -47,7 +49,6 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
       .catch(() => {});
   }, [userId, session]);
 
-  // Charger les likes de la story courante
   useEffect(() => {
     if (stories.length === 0) return;
     const story = stories[currentIndex];
@@ -130,63 +131,83 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
     setLastTap(now);
   };
 
-  // Gestion du timer
+  // Timer
   useEffect(() => {
     if (stories.length === 0) return;
-
-    // Réinitialiser le temps restant
     remainingTimeRef.current = 5000;
     startTimeRef.current = Date.now();
-
     const tick = () => {
       const elapsed = Date.now() - startTimeRef.current;
       const remaining = Math.max(0, 5000 - elapsed);
       remainingTimeRef.current = remaining;
-
       if (remaining <= 0) {
         next();
       } else {
-        timerRef.current = setTimeout(tick, 100); // Vérifie toutes les 100ms
+        timerRef.current = setTimeout(tick, 100);
       }
     };
-
     timerRef.current = setTimeout(tick, 100);
-
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [currentIndex, stories, next]);
 
-  // Mettre en pause lors d'un appui long (optionnel mais prévu)
-  const handlePointerDown = () => setIsPaused(true);
-  const handlePointerUp = () => setIsPaused(false);
-
-  // Effet de pause (arrête le timer, redémarre avec le temps restant)
-  useEffect(() => {
-    if (isPaused) {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    } else {
-      startTimeRef.current = Date.now() - (5000 - remainingTimeRef.current);
-      const tick = () => {
-        const elapsed = Date.now() - startTimeRef.current;
-        const remaining = Math.max(0, 5000 - elapsed);
-        remainingTimeRef.current = remaining;
-        if (remaining <= 0) {
-          next();
-        } else {
-          timerRef.current = setTimeout(tick, 100);
+  const deleteStory = async (storyId: string) => {
+    if (!confirm("Supprimer cette story ?")) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/stories/${storyId}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success("Story supprimée");
+        // Retirer la story de la liste locale
+        const newStories = stories.filter(s => s.id !== storyId);
+        setStories(newStories);
+        if (currentIndex >= newStories.length) {
+          // On vient de supprimer la dernière story
+          if (newStories.length === 0) onClose();
+          else setCurrentIndex(newStories.length - 1);
         }
-      };
-      timerRef.current = setTimeout(tick, 100);
+      } else {
+        toast.error("Erreur lors de la suppression");
+      }
+    } catch (err) {
+      toast.error("Erreur réseau");
+    } finally {
+      setIsDeleting(false);
     }
-  }, [isPaused, currentIndex, next]);
+  };
 
-  if (!userId || stories.length === 0) return null;
+  // Cas où on demande les stories d'un autre mais il n'en a pas
+  if (!userId || (stories.length === 0 && userId !== "me")) return null;
+
+  // Cas où c'est "me" et qu'il n'y a pas de story
+  if (userId === "me" && stories.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[200] bg-black flex items-center justify-center"
+      >
+        <div className="text-center text-white">
+          <p className="mb-4">Vous n&apos;avez pas encore de story.</p>
+          <button
+            onClick={() => {
+              onClose();
+              router.push("/dashboard/stories/new");
+            }}
+            className="px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-hover transition"
+          >
+            Créer une story
+          </button>
+        </div>
+      </motion.div>
+    );
+  }
 
   const story = stories[currentIndex];
-
-  // Pourcentage de progression de la story courante
-  const progress = remainingTimeRef.current / 5000; // 1 -> 0
+  const isOwner = session?.user?.id === story.userId;
+  const progress = remainingTimeRef.current / 5000;
 
   return (
     <AnimatePresence>
@@ -204,7 +225,19 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
           <X size={36} />
         </button>
 
-        {/* Barre de progression améliorée (remplissage continu) */}
+        {/* Bouton supprimer (si propriétaire) */}
+        {isOwner && (
+          <button
+            onClick={() => deleteStory(story.id)}
+            disabled={isDeleting}
+            className="absolute top-6 right-20 z-30 text-white hover:text-red-400 transition"
+            title="Supprimer"
+          >
+            <Trash2 size={28} />
+          </button>
+        )}
+
+        {/* Barre de progression */}
         <div className="absolute top-4 left-4 right-16 flex gap-1.5 z-30">
           {stories.map((_, idx) => (
             <div key={idx} className="flex-1 h-1.5 rounded-full bg-white/30 overflow-hidden">
@@ -221,21 +254,19 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
                 }}
                 transition={
                   idx === currentIndex
-                    ? { duration: 0.1, ease: "linear" } // mise à jour rapide
-                    : { duration: 0.3 } // transition pour les déjà passées
+                    ? { duration: 0.1, ease: "linear" }
+                    : { duration: 0.3 }
                 }
               />
             </div>
           ))}
         </div>
 
-        {/* Zone de contenu avec animation de passage */}
+        {/* Zone de contenu */}
         <div
           className="relative w-full h-full max-w-4xl mx-auto flex items-center justify-center"
           onDoubleClick={handleDoubleTap}
           onClick={handleTap}
-          onPointerDown={handlePointerDown}
-          onPointerUp={handlePointerUp}
         >
           <AnimatePresence mode="wait">
             <motion.div

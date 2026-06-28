@@ -1,9 +1,8 @@
 ﻿"use client";
 import { useEffect, useState } from "react";
 import { Plus, User } from "lucide-react";
-import { useSession } from "next-auth/react"; // ✅ import ajouté
+import { useSession } from "next-auth/react";
 
-// Type d'une story telle que renvoyée par l'API
 interface Story {
   id: string;
   userId: string;
@@ -24,19 +23,20 @@ interface StoryUser {
 }
 
 export function StoriesBar({ onStoryClick }: { onStoryClick: (userId: string) => void }) {
-  const { data: session } = useSession(); // ✅ récupère l'utilisateur connecté
+  const { data: session } = useSession();
   const [users, setUsers] = useState<StoryUser[]>([]);
+  const [myStories, setMyStories] = useState<Story[]>([]);
 
   useEffect(() => {
     fetch("/api/stories")
       .then(res => res.json())
       .then((data: Story[]) => {
-        const currentUserId = session?.user?.id; // ID de l'utilisateur connecté
+        const currentUserId = session?.user?.id;
+        const mine = data.filter(s => s.userId === currentUserId);
+        setMyStories(mine);
 
-        const grouped = data.reduce<StoryUser[]>((acc, story) => {
-          // ✅ On ignore les stories de l'utilisateur connecté (elles seront dans "Ma story")
+        const others = data.reduce<StoryUser[]>((acc, story) => {
           if (story.userId === currentUserId) return acc;
-
           const existing = acc.find(u => u.userId === story.userId);
           if (existing) {
             existing.stories.push(story);
@@ -51,25 +51,33 @@ export function StoriesBar({ onStoryClick }: { onStoryClick: (userId: string) =>
           }
           return acc;
         }, []);
-        setUsers(grouped);
+        setUsers(others);
       })
       .catch(() => {});
-  }, [session]); // ✅ dépend de la session
+  }, [session]);
 
   return (
     <div className="flex gap-4 overflow-x-auto pb-4">
-      {/* Bouton "Ma story" toujours visible */}
+      {/* Mon cercle */}
       <button
         onClick={() => onStoryClick("me")}
         className="flex flex-col items-center gap-1 flex-shrink-0"
       >
-        <div className="w-16 h-16 rounded-full border-2 border-dashed border-border flex items-center justify-center bg-gray-50 dark:bg-white/5 hover:border-primary transition-colors">
-          <Plus size={24} className="text-text-secondary" />
+        <div className="w-16 h-16 rounded-full border-2 border-dashed border-primary bg-gray-50 dark:bg-white/5 flex items-center justify-center overflow-hidden">
+          {myStories.length > 0 ? (
+            <img
+              src={myStories[myStories.length - 1].mediaUrl}
+              alt="Ma story"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <Plus size={24} className="text-primary" />
+          )}
         </div>
-        <span className="text-xs text-text-secondary font-medium">Ma story</span>
+        <span className="text-xs font-medium text-primary">Ma story</span>
       </button>
 
-      {/* Stories des autres membres (si présentes) */}
+      {/* Autres utilisateurs */}
       {users.map(user => (
         <button
           key={user.userId}

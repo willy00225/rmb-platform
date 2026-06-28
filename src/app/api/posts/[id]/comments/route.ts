@@ -15,7 +15,7 @@ export async function POST(
 
   const { id: postId } = await params;
 
-  // ✅ Vérification KYC (ajoutée)
+  // Vérification KYC
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { kycLevel: true, restrictedUntil: true, role: true },
@@ -33,7 +33,7 @@ export async function POST(
     return NextResponse.json({ error: "Compte suspendu." }, { status: 403 });
   }
 
-  const { content } = await req.json();
+  const { content, parentId } = await req.json();   // ✅ parentId ajouté
   if (!content) return NextResponse.json({ error: "Commentaire vide" }, { status: 400 });
 
   const comment = await prisma.comment.create({
@@ -41,6 +41,7 @@ export async function POST(
       content,
       postId,
       userId: session.user.id,
+      parentId: parentId || null,   // ✅ champ parentId (à ajouter dans le schéma Prisma)
     },
     include: {
       user: { select: { firstName: true, lastName: true, avatar: true } },
@@ -66,6 +67,25 @@ export async function POST(
       contents: { fr: `${commenter?.firstName || "Quelqu’un"} a commenté votre publication.` },
       includeExternalUserIds: [post.userId],
     });
+  }
+
+  // Notification au propriétaire du commentaire parent (si réponse)
+  if (parentId) {
+    const parentComment = await prisma.comment.findUnique({
+      where: { id: parentId },
+      select: { userId: true },
+    });
+    if (parentComment && parentComment.userId !== session.user.id) {
+      const replier = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { firstName: true },
+      });
+      await sendPushNotification({
+        headings: { fr: "Nouvelle réponse 💬" },
+        contents: { fr: `${replier?.firstName || "Quelqu’un"} a répondu à votre commentaire.` },
+        includeExternalUserIds: [parentComment.userId],
+      });
+    }
   }
 
   return NextResponse.json(comment, { status: 201 });

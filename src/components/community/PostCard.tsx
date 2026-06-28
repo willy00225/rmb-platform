@@ -1,11 +1,24 @@
 ﻿"use client";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { MessageCircle, Send, ThumbsUp, Share2, User, MoreHorizontal, Trash2, Pencil, Check, X } from "lucide-react";
+import {
+  MessageCircle,
+  Send,
+  ThumbsUp,
+  Share2,
+  User,
+  MoreHorizontal,
+  Trash2,
+  Pencil,
+  Check,
+  X,
+  Heart,
+  CornerDownRight,
+} from "lucide-react";
 import { UserName } from "@/components/ui/UserName";
 import toast from "react-hot-toast";
 
-// Types (inchangés)
+// Types
 interface UserBrief {
   id: string;
   firstName: string;
@@ -19,6 +32,9 @@ interface Comment {
   createdAt: string;
   user: UserBrief;
   userId: string;
+  parentId?: string | null;
+  replies?: Comment[];
+  likes?: { userId: string }[];
 }
 interface PostLike {
   userId: string;
@@ -42,7 +58,7 @@ export function PostCard({
   currentUserId,
   currentUserIsPremium,
   onShare,
-  onDelete, // callback optionnel pour informer le parent
+  onDelete,
 }: {
   post: Post;
   currentUserId: string;
@@ -56,14 +72,25 @@ export function PostCard({
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState("");
 
-  // État pour l'édition
+  // Édition du post
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   const [showMenu, setShowMenu] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Réponse à un commentaire
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState("");
+
   const isOwner = currentUserId === post.userId;
 
+  // Nombre total de commentaires (principaux + réponses)
+  const totalComments = comments.reduce(
+    (acc, c) => acc + 1 + (c.replies?.length || 0),
+    0
+  );
+
+  // ----- Likes du post -----
   const handleLike = async () => {
     const method = liked ? "DELETE" : "POST";
     const res = await fetch(`/api/posts/${post.id}/like`, { method });
@@ -77,6 +104,7 @@ export function PostCard({
     }
   };
 
+  // ----- Ajout d'un commentaire principal -----
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
     const res = await fetch(`/api/posts/${post.id}/comments`, {
@@ -86,12 +114,60 @@ export function PostCard({
     });
     if (res.ok) {
       const comment = await res.json();
-      setComments([...comments, comment]);
+      setComments([...comments, { ...comment, replies: [], likes: [] }]);
       setNewComment("");
     }
   };
 
-  // Mise à jour du contenu
+  // ----- Réponse à un commentaire -----
+  const handleReply = async (parentId: string) => {
+    if (!replyContent.trim()) return;
+    const res = await fetch(`/api/posts/${post.id}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: replyContent, parentId }),
+    });
+    if (res.ok) {
+      const reply = await res.json();
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === parentId
+            ? { ...c, replies: [...(c.replies || []), { ...reply, likes: [] }] }
+            : c
+        )
+      );
+      setReplyContent("");
+      setReplyingTo(null);
+    }
+  };
+
+  // ----- Like d'un commentaire -----
+  const handleLikeComment = async (commentId: string) => {
+    const allComments = [...comments, ...comments.flatMap((c) => c.replies || [])];
+    const comment = allComments.find((c) => c.id === commentId);
+    const alreadyLiked = comment?.likes?.some((l) => l.userId === currentUserId);
+
+    const method = alreadyLiked ? "DELETE" : "POST";
+    const res = await fetch(`/api/comments/${commentId}/like`, { method });
+    if (res.ok) {
+      const updateLikes = (list: Comment[]): Comment[] =>
+        list.map((c) => {
+          if (c.id === commentId) {
+            const newLikes = alreadyLiked
+              ? (c.likes || []).filter((l) => l.userId !== currentUserId)
+              : [...(c.likes || []), { userId: currentUserId }];
+            return { ...c, likes: newLikes };
+          }
+          if (c.replies) {
+            return { ...c, replies: updateLikes(c.replies) };
+          }
+          return c;
+        });
+      setComments(updateLikes(comments));
+    }
+  };
+
+  // ----- Sauvegarde de l'édition du post -----
   const handleSaveEdit = async () => {
     if (!editContent.trim()) return;
     const res = await fetch(`/api/posts/${post.id}`, {
@@ -101,16 +177,7 @@ export function PostCard({
     });
     if (res.ok) {
       const updated = await res.json();
-      // Mettre à jour le post localement (on ne peut pas modifier post directement, mais on peut forcer via le parent)
-      // Pour rester simple, on rafraîchit la page ou on remplace le contenu localement.
-      // Ici on va juste mettre à jour l'état local de `post.content` via une astuce : on ne peut pas, mais on va forcer un re-render en modifiant un état.
-      // Solution propre : on notifie le parent ou on invalide la query. On va utiliser un état local pour le contenu affiché.
-      // On va stocker le contenu dans un état local pour cette carte.
-      // Mais le post vient des props, donc on va créer un état local `content` initialisé à post.content.
-      // On va ajouter cet état.
-      // Nous allons le faire maintenant.
       setEditContent(updated.content);
-      // On passe en mode lecture
       setIsEditing(false);
       toast.success("Publication modifiée");
     } else {
@@ -118,6 +185,7 @@ export function PostCard({
     }
   };
 
+  // ----- Suppression du post -----
   const handleDelete = async () => {
     if (!confirm("Supprimer cette publication ?")) return;
     setIsDeleting(true);
@@ -130,9 +198,6 @@ export function PostCard({
     }
     setIsDeleting(false);
   };
-
-  // État local pour le contenu modifiable
-  const [displayContent, setDisplayContent] = useState(post.content);
 
   return (
     <motion.div
@@ -175,7 +240,7 @@ export function PostCard({
         </div>
       )}
 
-      {/* Partagé ? (inchangé) */}
+      {/* Partagé ? */}
       {post.sharedPost && (
         <div className="mb-4 p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10">
           <div className="flex items-center gap-2 text-xs text-text-secondary mb-2">
@@ -263,7 +328,7 @@ export function PostCard({
             <button
               onClick={() => {
                 setIsEditing(false);
-                setEditContent(displayContent);
+                setEditContent(post.content);
               }}
               className="px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-white/10 text-text text-sm font-medium hover:bg-gray-300 dark:hover:bg-white/20 transition flex items-center gap-1"
             >
@@ -275,7 +340,7 @@ export function PostCard({
         post.content && <p className="text-text leading-relaxed mb-4">{post.content}</p>
       )}
 
-      {/* Média (inchangé) */}
+      {/* Média */}
       {post.mediaUrl && (
         <div className="mb-4 rounded-xl overflow-hidden">
           {post.mediaType === "video" ? (
@@ -288,7 +353,7 @@ export function PostCard({
         </div>
       )}
 
-      {/* Actions (inchangé) */}
+      {/* Actions */}
       <div className="flex items-center gap-6 border-t border-border dark:border-white/10 pt-4">
         <button
           onClick={handleLike}
@@ -297,14 +362,14 @@ export function PostCard({
           } hover:text-primary transition`}
         >
           <ThumbsUp size={16} fill={liked ? "currentColor" : "none"} />
-          {likes.length} J'aime{likes.length > 1 ? "s" : ""}
+          {likes.length} J&apos;aime{likes.length > 1 ? "s" : ""}
         </button>
         <button
           onClick={() => setShowComments(!showComments)}
           className="flex items-center gap-2 text-sm text-text-secondary hover:text-text transition"
         >
           <MessageCircle size={16} />
-          {comments.length} commentaire{comments.length > 1 ? "s" : ""}
+          {totalComments} commentaire{totalComments > 1 ? "s" : ""}
         </button>
         {onShare && (
           <button
@@ -316,38 +381,141 @@ export function PostCard({
         )}
       </div>
 
-      {/* Commentaires (inchangé) */}
+      {/* Commentaires */}
       {showComments && (
-        <div className="mt-3 space-y-3">
+        <div className="mt-4 space-y-4">
           {comments.map((comment) => (
-            <div
-              key={comment.id}
-              className="flex items-start gap-3 pl-4 border-l-2 border-border dark:border-white/10"
-            >
-              <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-text-secondary">
-                <User size={12} />
-              </div>
-              <div>
-                <p className="text-sm text-text">
-                  <span className="font-medium">
-                    <UserName
-                      userId={comment.userId}
-                      firstName={comment.user.firstName}
-                      lastName={comment.user.lastName}
-                      isPremium={comment.user.isPremium}
-                    />
-                  </span>{" "}
-                  {comment.content}
-                </p>
-                <span className="text-xs text-text-secondary">
-                  {new Date(comment.createdAt).toLocaleTimeString("fr-FR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
+            <div key={comment.id}>
+              {/* Commentaire principal */}
+              <div className="flex items-start gap-3 pl-4 border-l-2 border-border dark:border-white/10">
+                <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-text-secondary">
+                  <User size={12} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-text">
+                    <span className="font-medium">
+                      <UserName
+                        userId={comment.userId}
+                        firstName={comment.user.firstName}
+                        lastName={comment.user.lastName}
+                        isPremium={comment.user.isPremium}
+                      />
+                    </span>{" "}
+                    {comment.content}
+                  </p>
+                  <div className="flex items-center gap-4 mt-1">
+                    <span className="text-xs text-text-secondary">
+                      {new Date(comment.createdAt).toLocaleTimeString("fr-FR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    <button
+                      onClick={() => handleLikeComment(comment.id)}
+                      className={`flex items-center gap-1 text-xs ${
+                        comment.likes?.some((l) => l.userId === currentUserId)
+                          ? "text-red-500"
+                          : "text-text-secondary"
+                      } hover:text-red-500 transition`}
+                    >
+                      <Heart
+                        size={12}
+                        fill={
+                          comment.likes?.some((l) => l.userId === currentUserId)
+                            ? "currentColor"
+                            : "none"
+                        }
+                      />
+                      {comment.likes?.length || 0}
+                    </button>
+                    <button
+                      onClick={() =>
+                        setReplyingTo(replyingTo === comment.id ? null : comment.id)
+                      }
+                      className="text-xs text-text-secondary hover:text-text transition flex items-center gap-1"
+                    >
+                      <CornerDownRight size={12} />
+                      Répondre
+                    </button>
+                  </div>
+
+                  {/* Réponses */}
+                  {comment.replies && comment.replies.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {comment.replies.map((reply) => (
+                        <div key={reply.id} className="flex items-start gap-3 pl-6">
+                          <div className="w-5 h-5 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-text-secondary">
+                            <User size={10} />
+                          </div>
+                          <div>
+                            <p className="text-sm text-text">
+                              <span className="font-medium">
+                                <UserName
+                                  userId={reply.userId}
+                                  firstName={reply.user.firstName}
+                                  lastName={reply.user.lastName}
+                                  isPremium={reply.user.isPremium}
+                                />
+                              </span>{" "}
+                              {reply.content}
+                            </p>
+                            <div className="flex items-center gap-4 mt-1">
+                              <span className="text-xs text-text-secondary">
+                                {new Date(reply.createdAt).toLocaleTimeString("fr-FR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                              <button
+                                onClick={() => handleLikeComment(reply.id)}
+                                className={`flex items-center gap-1 text-xs ${
+                                  reply.likes?.some((l) => l.userId === currentUserId)
+                                    ? "text-red-500"
+                                    : "text-text-secondary"
+                                } hover:text-red-500 transition`}
+                              >
+                                <Heart
+                                  size={12}
+                                  fill={
+                                    reply.likes?.some((l) => l.userId === currentUserId)
+                                      ? "currentColor"
+                                      : "none"
+                                  }
+                                />
+                                {reply.likes?.length || 0}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Formulaire de réponse */}
+                  {replyingTo === comment.id && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <textarea
+                        value={replyContent}
+                        onChange={(e) => setReplyContent(e.target.value)}
+                        placeholder="Votre réponse..."
+                        rows={1}
+                        className="flex-1 resize-none rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 px-3 py-2 text-sm text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
+                      />
+                      <button
+                        onClick={() => handleReply(comment.id)}
+                        disabled={!replyContent.trim()}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-hover disabled:opacity-40 transition"
+                      >
+                        <Send size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}
+
+          {/* Formulaire de commentaire principal */}
           <div className="flex items-center gap-2 mt-2">
             <textarea
               value={newComment}

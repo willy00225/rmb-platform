@@ -48,6 +48,7 @@ model User {
   callsReceived        Call[]                @relation("Receiver")
   checkIns             CheckIn[]
   comments             Comment[]
+  commentLikes         CommentLike[]         // ✅ Relation avec les likes des commentaires
   donations            Donation[]
   events               Event[]               @relation("Organizer")
   familyRelationsFrom  FamilyRelation[]      @relation("FromUser")
@@ -72,8 +73,8 @@ model User {
   postLikes            PostLike[]
   reports              Report[]              @relation("Reporter")
   stories              Story[]
-  storyLikes           StoryLike[]           // ✅ Relation avec les likes des stories
-  storyComments        StoryComment[]        // ✅ Relation avec les commentaires des stories
+  storyLikes           StoryLike[]
+  storyComments        StoryComment[]
   subscription         Subscription?
   transactions         Transaction[]
   kycValidatedBy       User?                 @relation("KycValidator", fields: [kycValidatedById], references: [id])
@@ -258,10 +259,30 @@ model Comment {
   postId    String
   userId    String
   content   String
+  parentId  String?  // ✅ ID du commentaire parent (si réponse)
   createdAt DateTime @default(now())
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id])
+  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
   reports   Report[]
+  likes     CommentLike[] // ✅ Relation avec les likes
+
+  @@index([postId, createdAt(sort: Desc)], map: "idx_comment_post_created")
+  @@index([parentId], map: "idx_comment_parent")
+}
+
+model CommentLike {
+  id        String   @id @default(uuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([commentId, userId])
+  @@index([commentId], map: "idx_commentlike_comment")
+  @@index([userId], map: "idx_commentlike_user")
 }
 
 model PostLike {
@@ -451,7 +472,6 @@ model Story {
   @@index([expiresAt], map: "idx_story_expires")
 }
 
-// ✅ Nouveaux modèles pour les interactions sur les stories
 model StoryLike {
   id        String   @id @default(uuid())
   storyId   String

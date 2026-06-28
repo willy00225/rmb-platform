@@ -27,12 +27,12 @@ import { RightSidebar } from "@/components/dashboard/RightSidebar";
 import { DashboardProviders } from "@/components/DashboardProviders";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 
-// ─── MobileHeaderInline (corrigé pour afficher le lien admin) ────
+// ─── MobileHeaderInline (corrigé pour le défilement) ────
 function MobileHeaderInline() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
-  const { data: session } = useSession(); // ✅ récupère la session pour le rôle
+  const { data: session } = useSession();
 
   const { data: unreadData } = useQuery({
     queryKey: ["unreadNotifications"],
@@ -125,8 +125,9 @@ function MobileHeaderInline() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="fixed top-0 left-0 z-50 w-[280px] h-full bg-white dark:bg-surface shadow-2xl pt-16 md:hidden overflow-y-auto"
+              className="fixed top-0 left-0 z-50 w-[280px] h-full bg-white dark:bg-surface shadow-2xl pt-16 md:hidden flex flex-col"
             >
+              {/* En-tête utilisateur */}
               <div className="px-6 py-4 border-b border-border">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg">U</div>
@@ -137,50 +138,54 @@ function MobileHeaderInline() {
                 </div>
               </div>
 
+              {/* Barre de recherche */}
               <div className="px-4 py-3">
                 <SearchBar />
               </div>
 
-              {/* ✅ Lien Administration pour les admins (visible uniquement si admin) */}
-              {isAdmin && (
-                <div className="px-3 pb-2">
-                  <Link
-                    href="/dashboard/admin"
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                      pathname.startsWith("/dashboard/admin")
-                        ? "bg-primary/10 text-primary"
-                        : "text-text-secondary hover:bg-gray-100 dark:hover:bg-white/5 hover:text-text"
-                    }`}
-                  >
-                    <ShieldCheck size={20} className={pathname.startsWith("/dashboard/admin") ? "text-primary" : "text-text-secondary"} />
-                    Administration
-                    {pathname.startsWith("/dashboard/admin") && (
-                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
-                    )}
-                  </Link>
-                </div>
-              )}
-
-              <nav className="p-3 space-y-1">
-                {menuLinks.map((link) => {
-                  const Icon = link.icon;
-                  const active = isActive(link.href);
-                  return (
-                    <Link key={link.href} href={link.href} onClick={() => setIsMenuOpen(false)}
+              {/* Zone scrollable pour les liens */}
+              <div className="flex-1 overflow-y-auto px-3 py-2">
+                {/* Lien Administration pour les admins */}
+                {isAdmin && (
+                  <div className="pb-2">
+                    <Link
+                      href="/dashboard/admin"
+                      onClick={() => setIsMenuOpen(false)}
                       className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                        active ? "bg-primary/10 text-primary" : "text-text-secondary hover:bg-gray-100 dark:hover:bg-white/5 hover:text-text"
+                        pathname.startsWith("/dashboard/admin")
+                          ? "bg-primary/10 text-primary"
+                          : "text-text-secondary hover:bg-gray-100 dark:hover:bg-white/5 hover:text-text"
                       }`}
                     >
-                      <Icon size={20} className={active ? "text-primary" : "text-text-secondary"} />
-                      {link.label}
-                      {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
+                      <ShieldCheck size={20} className={pathname.startsWith("/dashboard/admin") ? "text-primary" : "text-text-secondary"} />
+                      Administration
+                      {pathname.startsWith("/dashboard/admin") && (
+                        <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
+                      )}
                     </Link>
-                  );
-                })}
-              </nav>
+                  </div>
+                )}
+                <nav className="space-y-1">
+                  {menuLinks.map((link) => {
+                    const Icon = link.icon;
+                    const active = isActive(link.href);
+                    return (
+                      <Link key={link.href} href={link.href} onClick={() => setIsMenuOpen(false)}
+                        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                          active ? "bg-primary/10 text-primary" : "text-text-secondary hover:bg-gray-100 dark:hover:bg-white/5 hover:text-text"
+                        }`}
+                      >
+                        <Icon size={20} className={active ? "text-primary" : "text-text-secondary"} />
+                        {link.label}
+                        {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </div>
 
-              <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-border bg-white dark:bg-surface">
+              {/* Liens du bas (fixes) */}
+              <div className="p-3 border-t border-border bg-white dark:bg-surface">
                 {bottomLinks.map((link) => {
                   const Icon = link.icon;
                   return (
@@ -256,13 +261,16 @@ function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // ✅ Espace supplémentaire sous les pages admin pour éviter le chevauchement du MobileNav
+  const isAdminPage = pathname.startsWith("/dashboard/admin");
+
   return (
     <div className="min-h-screen bg-bkg overflow-x-hidden">
       <DesktopHeader />
       <Sidebar />
       <div className="md:pl-60 lg:pr-80">
         <MobileHeaderInline />
-        <main className="pt-16 md:pt-14 pb-24 md:pb-0 min-h-screen">
+        <main className={`pt-16 md:pt-14 pb-24 md:pb-0 min-h-screen ${isAdminPage ? "pb-36" : ""}`}>
           <div className="max-w-3xl mx-auto px-4 py-4 md:px-8 md:py-6">
             <div className="bg-white dark:bg-surface rounded-2xl shadow-2xl min-h-screen p-4 md:p-6">
               <StoriesBar onStoryClick={handleStoryClick} />

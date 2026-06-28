@@ -53,6 +53,7 @@ export default function SettingsPage() {
     setAvatarUploading(true);
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("type", "avatar");   // ✅ ajouté
     const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
     if (uploadRes.ok) {
       const { url } = await uploadRes.json();
@@ -74,6 +75,7 @@ export default function SettingsPage() {
     setCoverUploading(true);
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("type", "cover");   // ✅ ajouté
     const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
     if (uploadRes.ok) {
       const { url } = await uploadRes.json();

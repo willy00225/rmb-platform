@@ -13,6 +13,15 @@ export async function GET() {
     process.env.STREAM_API_SECRET!
   );
 
-  const token = serverClient.createToken(session.user.id);
+  // Détermine le rôle Stream en fonction du rôle NextAuth
+  const isAdmin =
+    session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+  const streamRole = isAdmin ? "admin" : "user";
+
+  // Crée le token avec le rôle explicite (utilisation de any pour contourner le typage strict)
+  const token = (serverClient as any).createToken(session.user.id, {
+    role: streamRole,
+  });
+
   return NextResponse.json({ token });
 }

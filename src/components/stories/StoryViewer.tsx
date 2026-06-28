@@ -1,5 +1,5 @@
 ﻿"use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, Heart, Send, Smile } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -26,6 +26,10 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
   const [reply, setReply] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const remainingTimeRef = useRef(5000);
+  const startTimeRef = useRef(Date.now());
 
   useEffect(() => {
     if (!userId) return;
@@ -117,7 +121,6 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
     else next();
   };
 
-  // Double‑tap pour liker
   const [lastTap, setLastTap] = useState(0);
   const handleDoubleTap = (e: React.MouseEvent<HTMLDivElement>) => {
     const now = Date.now();
@@ -127,15 +130,63 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
     setLastTap(now);
   };
 
+  // Gestion du timer
   useEffect(() => {
     if (stories.length === 0) return;
-    const timer = setTimeout(next, 5000);
-    return () => clearTimeout(timer);
+
+    // Réinitialiser le temps restant
+    remainingTimeRef.current = 5000;
+    startTimeRef.current = Date.now();
+
+    const tick = () => {
+      const elapsed = Date.now() - startTimeRef.current;
+      const remaining = Math.max(0, 5000 - elapsed);
+      remainingTimeRef.current = remaining;
+
+      if (remaining <= 0) {
+        next();
+      } else {
+        timerRef.current = setTimeout(tick, 100); // Vérifie toutes les 100ms
+      }
+    };
+
+    timerRef.current = setTimeout(tick, 100);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [currentIndex, stories, next]);
+
+  // Mettre en pause lors d'un appui long (optionnel mais prévu)
+  const handlePointerDown = () => setIsPaused(true);
+  const handlePointerUp = () => setIsPaused(false);
+
+  // Effet de pause (arrête le timer, redémarre avec le temps restant)
+  useEffect(() => {
+    if (isPaused) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    } else {
+      startTimeRef.current = Date.now() - (5000 - remainingTimeRef.current);
+      const tick = () => {
+        const elapsed = Date.now() - startTimeRef.current;
+        const remaining = Math.max(0, 5000 - elapsed);
+        remainingTimeRef.current = remaining;
+        if (remaining <= 0) {
+          next();
+        } else {
+          timerRef.current = setTimeout(tick, 100);
+        }
+      };
+      timerRef.current = setTimeout(tick, 100);
+    }
+  }, [isPaused, currentIndex, next]);
 
   if (!userId || stories.length === 0) return null;
 
   const story = stories[currentIndex];
+
+  // Pourcentage de progression de la story courante
+  const progress = remainingTimeRef.current / 5000; // 1 -> 0
 
   return (
     <AnimatePresence>
@@ -153,7 +204,7 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
           <X size={36} />
         </button>
 
-        {/* Barre de progression */}
+        {/* Barre de progression améliorée (remplissage continu) */}
         <div className="absolute top-4 left-4 right-16 flex gap-1.5 z-30">
           {stories.map((_, idx) => (
             <div key={idx} className="flex-1 h-1.5 rounded-full bg-white/30 overflow-hidden">
@@ -161,37 +212,56 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
                 className="h-full bg-white rounded-full"
                 initial={{ width: "0%" }}
                 animate={{
-                  width: idx === currentIndex ? "100%" : idx < currentIndex ? "100%" : "0%",
+                  width:
+                    idx < currentIndex
+                      ? "100%"
+                      : idx === currentIndex
+                      ? `${100 - progress * 100}%`
+                      : "0%",
                 }}
-                transition={{ duration: 0.3 }}
+                transition={
+                  idx === currentIndex
+                    ? { duration: 0.1, ease: "linear" } // mise à jour rapide
+                    : { duration: 0.3 } // transition pour les déjà passées
+                }
               />
             </div>
           ))}
         </div>
 
-        {/* Zone de contenu */}
+        {/* Zone de contenu avec animation de passage */}
         <div
           className="relative w-full h-full max-w-4xl mx-auto flex items-center justify-center"
           onDoubleClick={handleDoubleTap}
           onClick={handleTap}
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
         >
-          {/* Média */}
-          <div className="w-full h-[85vh] mx-4 rounded-2xl overflow-hidden">
-            {story.mediaType === "video" ? (
-              <video
-                src={story.mediaUrl}
-                controls
-                autoPlay
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <img
-                src={story.mediaUrl}
-                alt=""
-                className="w-full h-full object-contain"
-              />
-            )}
-          </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentIndex}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              transition={{ duration: 0.3 }}
+              className="w-full h-[85vh] mx-4 rounded-2xl overflow-hidden"
+            >
+              {story.mediaType === "video" ? (
+                <video
+                  src={story.mediaUrl}
+                  controls
+                  autoPlay
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <img
+                  src={story.mediaUrl}
+                  alt=""
+                  className="w-full h-full object-contain"
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
 
           {/* Flèches */}
           {currentIndex > 0 && (
@@ -215,7 +285,6 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
         {/* Barre d'actions en bas */}
         <div className="absolute bottom-0 left-0 right-0 p-4 z-30 bg-gradient-to-t from-black/60 to-transparent">
           <div className="flex items-center justify-between max-w-4xl mx-auto">
-            {/* Réaction + compteur */}
             <div className="flex items-center gap-3">
               <button
                 onClick={toggleLike}
@@ -233,7 +302,6 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
               )}
             </div>
 
-            {/* Barre de réponse rapide */}
             <div className="flex items-center gap-2 flex-1 ml-4">
               <div className="relative flex-1">
                 <input

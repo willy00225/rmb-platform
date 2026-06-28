@@ -26,6 +26,7 @@ import { DesktopHeader } from "@/components/dashboard/DesktopHeader";
 import { RightSidebar } from "@/components/dashboard/RightSidebar";
 import { DashboardProviders } from "@/components/DashboardProviders";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
+import "@/styles/chat-theme.css"; // ✅ Thème personnalisé du chat
 
 // ─── MobileHeaderInline (corrigé pour le défilement) ────
 function MobileHeaderInline() {

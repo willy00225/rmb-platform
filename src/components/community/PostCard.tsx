@@ -53,6 +53,8 @@ interface Post {
   sharedBy?: { user: UserBrief }[];
 }
 
+const MAX_CONTENT_LENGTH = 280;
+
 export function PostCard({
   post,
   currentUserId,
@@ -72,25 +74,23 @@ export function PostCard({
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState("");
 
-  // Édition du post
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   const [showMenu, setShowMenu] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Réponse à un commentaire
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
 
+  const [isContentExpanded, setIsContentExpanded] = useState(false);
+
   const isOwner = currentUserId === post.userId;
 
-  // Nombre total de commentaires (principaux + réponses)
   const totalComments = comments.reduce(
     (acc, c) => acc + 1 + (c.replies?.length || 0),
     0
   );
 
-  // ----- Likes du post -----
   const handleLike = async () => {
     const method = liked ? "DELETE" : "POST";
     const res = await fetch(`/api/posts/${post.id}/like`, { method });
@@ -104,7 +104,6 @@ export function PostCard({
     }
   };
 
-  // ----- Ajout d'un commentaire principal -----
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
     const res = await fetch(`/api/posts/${post.id}/comments`, {
@@ -119,7 +118,6 @@ export function PostCard({
     }
   };
 
-  // ----- Réponse à un commentaire -----
   const handleReply = async (parentId: string) => {
     if (!replyContent.trim()) return;
     const res = await fetch(`/api/posts/${post.id}/comments`, {
@@ -141,7 +139,6 @@ export function PostCard({
     }
   };
 
-  // ----- Like d'un commentaire -----
   const handleLikeComment = async (commentId: string) => {
     const allComments = [...comments, ...comments.flatMap((c) => c.replies || [])];
     const comment = allComments.find((c) => c.id === commentId);
@@ -167,7 +164,6 @@ export function PostCard({
     }
   };
 
-  // ----- Sauvegarde de l'édition du post -----
   const handleSaveEdit = async () => {
     if (!editContent.trim()) return;
     const res = await fetch(`/api/posts/${post.id}`, {
@@ -185,7 +181,6 @@ export function PostCard({
     }
   };
 
-  // ----- Suppression du post -----
   const handleDelete = async () => {
     if (!confirm("Supprimer cette publication ?")) return;
     setIsDeleting(true);
@@ -199,13 +194,18 @@ export function PostCard({
     setIsDeleting(false);
   };
 
+  const contentIsLong = post.content && post.content.length > MAX_CONTENT_LENGTH;
+  const displayedContent =
+    contentIsLong && !isContentExpanded
+      ? post.content?.substring(0, MAX_CONTENT_LENGTH) + "..."
+      : post.content;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="card-premium p-6 relative"
     >
-      {/* Menu pour l'auteur */}
       {isOwner && (
         <div className="absolute top-4 right-4 z-10">
           <button
@@ -240,7 +240,6 @@ export function PostCard({
         </div>
       )}
 
-      {/* Partagé ? */}
       {post.sharedPost && (
         <div className="mb-4 p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10">
           <div className="flex items-center gap-2 text-xs text-text-secondary mb-2">
@@ -278,7 +277,6 @@ export function PostCard({
         </div>
       )}
 
-      {/* En-tête utilisateur */}
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
           {post.user.avatar ? (
@@ -307,7 +305,6 @@ export function PostCard({
         </div>
       </div>
 
-      {/* Contenu (mode édition ou lecture) */}
       {isEditing ? (
         <div className="mb-4">
           <textarea
@@ -337,10 +334,21 @@ export function PostCard({
           </div>
         </div>
       ) : (
-        post.content && <p className="text-text leading-relaxed mb-4">{post.content}</p>
+        post.content && (
+          <div className="mb-4">
+            <p className="text-text leading-relaxed">{displayedContent}</p>
+            {contentIsLong && (
+              <button
+                onClick={() => setIsContentExpanded(!isContentExpanded)}
+                className="text-primary text-sm font-medium hover:underline mt-1"
+              >
+                {isContentExpanded ? "Voir moins" : "Voir plus"}
+              </button>
+            )}
+          </div>
+        )
       )}
 
-      {/* Média */}
       {post.mediaUrl && (
         <div className="mb-4 rounded-xl overflow-hidden">
           {post.mediaType === "video" ? (
@@ -353,7 +361,6 @@ export function PostCard({
         </div>
       )}
 
-      {/* Actions */}
       <div className="flex items-center gap-6 border-t border-border dark:border-white/10 pt-4">
         <button
           onClick={handleLike}
@@ -381,12 +388,10 @@ export function PostCard({
         )}
       </div>
 
-      {/* Commentaires */}
       {showComments && (
         <div className="mt-4 space-y-4">
           {comments.map((comment) => (
             <div key={comment.id}>
-              {/* Commentaire principal */}
               <div className="flex items-start gap-3 pl-4 border-l-2 border-border dark:border-white/10">
                 <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-text-secondary">
                   <User size={12} />
@@ -439,7 +444,6 @@ export function PostCard({
                     </button>
                   </div>
 
-                  {/* Réponses */}
                   {comment.replies && comment.replies.length > 0 && (
                     <div className="mt-2 space-y-2">
                       {comment.replies.map((reply) => (
@@ -491,7 +495,6 @@ export function PostCard({
                     </div>
                   )}
 
-                  {/* Formulaire de réponse */}
                   {replyingTo === comment.id && (
                     <div className="mt-2 flex items-center gap-2">
                       <textarea
@@ -515,7 +518,6 @@ export function PostCard({
             </div>
           ))}
 
-          {/* Formulaire de commentaire principal */}
           <div className="flex items-center gap-2 mt-2">
             <textarea
               value={newComment}

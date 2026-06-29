@@ -11,14 +11,24 @@ export async function GET(req: Request) {
     where: {
       OR: [
         { visible: true },
-        { userId: session.user.id },          // L'auteur voit ses posts masqués
-        // Optionnel : les admins pourraient tout voir (à ajouter si besoin)
+        { userId: session.user.id },
       ],
     },
     include: {
       user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
       comments: {
-        include: { user: { select: { id: true, firstName: true, lastName: true, avatar: true } } },
+        where: { parentId: null },   // uniquement les commentaires principaux
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+          likes: { select: { userId: true } },
+          replies: {
+            include: {
+              user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+              likes: { select: { userId: true } },
+            },
+            orderBy: { createdAt: "asc" },
+          },
+        },
         orderBy: { createdAt: "asc" },
       },
       likes: { select: { userId: true } },
@@ -31,11 +41,17 @@ export async function GET(req: Request) {
     orderBy: [{ isBoosted: "desc" }, { createdAt: "desc" }],
   });
 
-  // Sérialisation des dates pour les composants clients
   const serialized = posts.map((post: any) => ({
     ...post,
     createdAt: post.createdAt.toISOString(),
-    comments: post.comments.map((c: any) => ({ ...c, createdAt: c.createdAt.toISOString() })),
+    comments: post.comments.map((c: any) => ({
+      ...c,
+      createdAt: c.createdAt.toISOString(),
+      replies: c.replies.map((r: any) => ({
+        ...r,
+        createdAt: r.createdAt.toISOString(),
+      })),
+    })),
   }));
 
   return NextResponse.json(serialized);
@@ -48,7 +64,6 @@ export async function POST(req: Request) {
   const { content, mediaUrl, mediaType, sharedPostId } = await req.json();
   if (!content && !mediaUrl) return NextResponse.json({ error: "Contenu ou média requis" }, { status: 400 });
 
-  // ✅ Vérification KYC (ajoutée)
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { kycLevel: true, restrictedUntil: true, role: true },
@@ -60,7 +75,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Vérifier si l'utilisateur est restreint
   if (user.restrictedUntil && new Date() < user.restrictedUntil) {
     return NextResponse.json({ error: "Vous êtes temporairement restreint de publication." }, { status: 403 });
   }
@@ -68,7 +82,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Compte suspendu." }, { status: 403 });
   }
 
-  // Filtres automatiques sur le texte
   if (content) {
     const blocked = containsBlockedContent(content);
     if (blocked) {
@@ -78,7 +91,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Contenu détecté comme spam. Veuillez réduire la répétition." }, { status: 403 });
     }
     if (isToxic(content)) {
-      // Créer le post mais le masquer
       const post = await prisma.post.create({
         data: {
           content,
@@ -96,7 +108,6 @@ export async function POST(req: Request) {
     }
   }
 
-  // Création normale
   const post = await prisma.post.create({
     data: {
       content,

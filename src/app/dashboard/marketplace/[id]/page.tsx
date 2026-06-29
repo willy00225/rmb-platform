@@ -2,14 +2,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { Loader2, MapPin, Tag, ShoppingCart, CheckCircle } from "lucide-react";
+import { Loader2, MapPin, Tag, ShoppingCart, MessageCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSession } from "next-auth/react";
+import { useChat } from "@/contexts/ChatContext"; // ✅ import du contexte de chat
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { data: session } = useSession();
+  const { openChatWithFriend } = useChat(); // ✅ permet d’ouvrir une conversation
 
   const { data: product, isLoading } = useQuery({
     queryKey: ["product", id],
@@ -53,11 +55,25 @@ export default function ProductDetailPage() {
             <p className="text-text-secondary flex items-center gap-1 mt-2"><MapPin size={16} /> {product.location}</p>
           )}
           <p className="text-text-secondary mt-4">{product.description}</p>
-          <p className="text-text-secondary text-sm mt-4">Vendu par {product.user?.firstName} {product.user?.lastName}</p>
+          <p className="text-text-secondary text-sm mt-4">
+            Vendu par {product.user?.firstName} {product.user?.lastName}
+          </p>
+
+          {/* Actions */}
           {product.status === "active" && !isOwner && (
-            <Button onClick={handleBuy} variant="primary" size="lg" className="mt-6 w-full">
-              <ShoppingCart size={20} /> Acheter
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3 mt-6">
+              <Button onClick={handleBuy} variant="primary" size="lg" className="flex-1">
+                <ShoppingCart size={20} /> Acheter
+              </Button>
+              <Button
+                onClick={() => openChatWithFriend(product.userId)} // ✅ ouvre le chat avec le vendeur
+                variant="secondary"
+                size="lg"
+                className="flex-1"
+              >
+                <MessageCircle size={20} /> Contacter le vendeur
+              </Button>
+            </div>
           )}
           {product.status === "sold" && (
             <p className="text-red-500 mt-4 font-medium">Vendu</p>

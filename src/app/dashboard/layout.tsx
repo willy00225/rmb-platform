@@ -12,6 +12,8 @@ import { OneSignalRegistrar } from "@/components/notifications/OneSignalRegistra
 import { StoriesBar } from "@/components/stories/StoriesBar";
 import { StoryViewer } from "@/components/stories/StoryViewer";
 import { ChatProvider } from "@/contexts/ChatContext";
+import { NotificationsProvider, useNotifications } from "@/contexts/NotificationsContext";
+import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 import {
   Menu, Bell, X, Newspaper, Users, User, LayoutDashboard,
   CalendarDays, Heart, Shield, Radio, Trophy, Settings,
@@ -26,14 +28,15 @@ import { DesktopHeader } from "@/components/dashboard/DesktopHeader";
 import { RightSidebar } from "@/components/dashboard/RightSidebar";
 import { DashboardProviders } from "@/components/DashboardProviders";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
-import "@/styles/chat-theme.css"; // ✅ Thème personnalisé du chat
+import "@/styles/chat-theme.css";
 
-// ─── MobileHeaderInline (corrigé pour le défilement) ────
+// ─── MobileHeaderInline ────
 function MobileHeaderInline() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const { data: session } = useSession();
+  const { setOpen: setNotificationsOpen } = useNotifications(); // ✅
 
   const { data: unreadData } = useQuery({
     queryKey: ["unreadNotifications"],
@@ -90,8 +93,9 @@ function MobileHeaderInline() {
             <Trophy size={20} />
           </Link>
 
-          <Link
-            href="/dashboard/notifications"
+          {/* ✅ Bouton notifications (rideau) au lieu du Link */}
+          <button
+            onClick={() => setNotificationsOpen(true)}
             className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-white/10 text-text-secondary dark:text-text hover:bg-gray-200 dark:hover:bg-white/20 transition relative"
           >
             <Bell size={20} />
@@ -100,7 +104,7 @@ function MobileHeaderInline() {
                 {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}
-          </Link>
+          </button>
 
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -128,7 +132,6 @@ function MobileHeaderInline() {
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               className="fixed top-0 left-0 z-50 w-[280px] h-full bg-white dark:bg-surface shadow-2xl pt-16 md:hidden flex flex-col"
             >
-              {/* En-tête utilisateur */}
               <div className="px-6 py-4 border-b border-border">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg">U</div>
@@ -139,14 +142,11 @@ function MobileHeaderInline() {
                 </div>
               </div>
 
-              {/* Barre de recherche */}
               <div className="px-4 py-3">
                 <SearchBar />
               </div>
 
-              {/* Zone scrollable pour les liens */}
               <div className="flex-1 overflow-y-auto px-3 py-2">
-                {/* Lien Administration pour les admins */}
                 {isAdmin && (
                   <div className="pb-2">
                     <Link
@@ -185,7 +185,6 @@ function MobileHeaderInline() {
                 </nav>
               </div>
 
-              {/* Liens du bas (fixes) */}
               <div className="p-3 border-t border-border bg-white dark:bg-surface">
                 {bottomLinks.map((link) => {
                   const Icon = link.icon;
@@ -207,7 +206,7 @@ function MobileHeaderInline() {
   );
 }
 
-// ─── Bandeau d'avertissement KYC (inchangé) ──────────────────────────────
+// ─── Bandeau d'avertissement KYC ──────────────────────────────
 function KycWarningBanner() {
   return (
     <div className="mb-6 p-4 rounded-xl bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 flex items-start gap-3">
@@ -236,10 +235,10 @@ function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [storyUserId, setStoryUserId] = useState<string | null>(null);
   const pathname = usePathname();
+  const { open: notificationsOpen, setOpen: setNotificationsOpen } = useNotifications(); // ✅
 
   if (!session) return null;
 
-  // 🔒 Vérification KYC
   const kycLevel = session.user?.kycLevel;
   const isKycVerified = kycLevel === "ID_VERIFIED" || kycLevel === "AMBASSADOR";
   const isAdmin = session.user?.role === "ADMIN" || session.user?.role === "SUPER_ADMIN";
@@ -253,12 +252,10 @@ function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
   const isExempted = exemptedPaths.some(p => pathname.startsWith(p)) || (pathname.startsWith("/dashboard/admin") && isAdmin);
   const showKycBanner = !isKycVerified && !isExempted;
 
-  // Gestionnaire de clic sur les stories
   const handleStoryClick = (userId: string) => {
     setStoryUserId(userId);
   };
 
-  // ✅ Espace supplémentaire sous les pages admin pour éviter le chevauchement du MobileNav
   const isAdminPage = pathname.startsWith("/dashboard/admin");
 
   return (
@@ -284,6 +281,8 @@ function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
       <NotificationPrompt />
       <OneSignalRegistrar />
       {storyUserId && <StoryViewer userId={storyUserId} onClose={() => setStoryUserId(null)} />}
+      {/* ✅ Rideau de notifications */}
+      <NotificationPanel open={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
     </div>
   );
 }
@@ -298,7 +297,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <DashboardProviders>
       <ChatProvider>
-        <DashboardInnerLayout>{children}</DashboardInnerLayout>
+        <NotificationsProvider>   {/* ✅ Contexte du rideau */}
+          <DashboardInnerLayout>{children}</DashboardInnerLayout>
+        </NotificationsProvider>
       </ChatProvider>
     </DashboardProviders>
   );

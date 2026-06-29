@@ -49,6 +49,7 @@ interface Post {
   userId: string;
   comments: Comment[];
   likes: PostLike[];
+  sharesCount?: number; // ✅ nombre de partages
   sharedPost?: Post | null;
   sharedBy?: { user: UserBrief }[];
 }
@@ -83,6 +84,8 @@ export function PostCard({
   const [replyContent, setReplyContent] = useState("");
 
   const [isContentExpanded, setIsContentExpanded] = useState(false);
+  const [sharesCount, setSharesCount] = useState(post.sharesCount || 0);
+  const [isSharing, setIsSharing] = useState(false);
 
   const isOwner = currentUserId === post.userId;
 
@@ -91,6 +94,7 @@ export function PostCard({
     0
   );
 
+  // ----- Likes du post -----
   const handleLike = async () => {
     const method = liked ? "DELETE" : "POST";
     const res = await fetch(`/api/posts/${post.id}/like`, { method });
@@ -104,6 +108,7 @@ export function PostCard({
     }
   };
 
+  // ----- Ajout d'un commentaire principal -----
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
     const res = await fetch(`/api/posts/${post.id}/comments`, {
@@ -118,6 +123,7 @@ export function PostCard({
     }
   };
 
+  // ----- Réponse à un commentaire -----
   const handleReply = async (parentId: string) => {
     if (!replyContent.trim()) return;
     const res = await fetch(`/api/posts/${post.id}/comments`, {
@@ -139,6 +145,7 @@ export function PostCard({
     }
   };
 
+  // ----- Like d'un commentaire -----
   const handleLikeComment = async (commentId: string) => {
     const allComments = [...comments, ...comments.flatMap((c) => c.replies || [])];
     const comment = allComments.find((c) => c.id === commentId);
@@ -164,6 +171,7 @@ export function PostCard({
     }
   };
 
+  // ----- Sauvegarde de l'édition du post -----
   const handleSaveEdit = async () => {
     if (!editContent.trim()) return;
     const res = await fetch(`/api/posts/${post.id}`, {
@@ -181,6 +189,7 @@ export function PostCard({
     }
   };
 
+  // ----- Suppression du post -----
   const handleDelete = async () => {
     if (!confirm("Supprimer cette publication ?")) return;
     setIsDeleting(true);
@@ -192,6 +201,23 @@ export function PostCard({
       toast.error("Erreur lors de la suppression");
     }
     setIsDeleting(false);
+  };
+
+  // ----- Partage immédiat -----
+  const handleShare = async () => {
+    setIsSharing(true);
+    const res = await fetch("/api/posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sharedPostId: post.id }),
+    });
+    if (res.ok) {
+      setSharesCount((prev) => prev + 1);
+      toast.success("Publication partagée !");
+    } else {
+      toast.error("Erreur lors du partage");
+    }
+    setIsSharing(false);
   };
 
   const contentIsLong = post.content && post.content.length > MAX_CONTENT_LENGTH;
@@ -378,14 +404,15 @@ export function PostCard({
           <MessageCircle size={16} />
           {totalComments} commentaire{totalComments > 1 ? "s" : ""}
         </button>
-        {onShare && (
-          <button
-            onClick={() => onShare(post.id)}
-            className="flex items-center gap-2 text-sm text-text-secondary hover:text-text transition"
-          >
-            <Share2 size={16} /> Partager
-          </button>
-        )}
+        <button
+          onClick={handleShare}
+          disabled={isSharing}
+          className="flex items-center gap-2 text-sm text-text-secondary hover:text-text transition"
+        >
+          <Share2 size={16} />
+          {sharesCount > 0 && <span className="text-xs">{sharesCount}</span>}
+          Partager
+        </button>
       </div>
 
       {showComments && (

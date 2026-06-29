@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Users } from "lucide-react";
 import { revalidatePath } from "next/cache";
+import { PostCard } from "@/components/community/PostCard"; // ✅ import ajouté
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,27 @@ export default async function GroupDetailPage({
     redirect(`/dashboard/groups/${id}`);
   }
 
+  // ✅ Transformer les GroupPost en objets Post pour PostCard
+  const serializedPosts = group.posts.map((p) => ({
+    id: p.id,
+    content: p.content,
+    mediaUrl: null,                // les GroupPost n'ont pas de média actuellement, mais on peut adapter
+    mediaType: null,
+    createdAt: p.createdAt.toISOString(),
+    userId: p.userId,
+    user: {
+      id: p.userId,
+      firstName: p.user.firstName,
+      lastName: p.user.lastName,
+      avatar: null,
+      isPremium: false,            // si vous gérez le premium, vous pouvez l'ajouter
+    },
+    comments: [],                  // pas encore de commentaires de groupe, mais l'API les renverra
+    likes: [],
+    sharesCount: 0,
+    sharedPost: null,
+  }));
+
   return (
     <div className="space-y-8 animate-fadeInUp pb-24 md:pb-0">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -88,29 +110,18 @@ export default async function GroupDetailPage({
         <h2 className="text-lg font-semibold text-text">
           Publications du groupe
         </h2>
-        {group.posts.length === 0 ? (
+        {serializedPosts.length === 0 ? (
           <div className="card-premium p-6 text-center text-text-secondary">
             Aucune publication pour le moment.
           </div>
         ) : (
-          group.posts.map((post) => (
-            <div key={post.id} className="card-premium p-4">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
-                  {post.user.firstName[0]}
-                  {post.user.lastName[0]}
-                </div>
-                <span className="text-text text-sm font-medium">
-                  {post.user.firstName} {post.user.lastName}
-                </span>
-                <span className="text-xs text-text-secondary ml-auto">
-                  {new Date(post.createdAt).toLocaleDateString("fr-FR")}
-                </span>
-              </div>
-              <p className="text-text-secondary break-words">
-                {post.content}
-              </p>
-            </div>
+          serializedPosts.map((post) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              currentUserId={session.user.id}
+              // Vous pouvez ajouter onShare et onDelete comme pour le fil principal
+            />
           ))
         )}
       </div>

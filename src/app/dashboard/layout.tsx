@@ -36,7 +36,7 @@ function MobileHeaderInline() {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const { data: session } = useSession();
-  const { setOpen: setNotificationsOpen } = useNotifications(); // ✅
+  const { setOpen: setNotificationsOpen } = useNotifications();
 
   const { data: unreadData } = useQuery({
     queryKey: ["unreadNotifications"],
@@ -93,7 +93,6 @@ function MobileHeaderInline() {
             <Trophy size={20} />
           </Link>
 
-          {/* ✅ Bouton notifications (rideau) au lieu du Link */}
           <button
             onClick={() => setNotificationsOpen(true)}
             className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-white/10 text-text-secondary dark:text-text hover:bg-gray-200 dark:hover:bg-white/20 transition relative"
@@ -206,36 +205,13 @@ function MobileHeaderInline() {
   );
 }
 
-// ─── Bandeau d'avertissement KYC ──────────────────────────────
-function KycWarningBanner() {
-  return (
-    <div className="mb-6 p-4 rounded-xl bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 flex items-start gap-3">
-      <AlertTriangle size={20} className="text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-      <div>
-        <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">
-          Vérification d'identité requise
-        </p>
-        <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
-          Pour accéder à toutes les fonctionnalités, veuillez vérifier votre identité.
-        </p>
-        <Link
-          href="/dashboard/kyc"
-          className="inline-block mt-2 text-xs font-medium text-yellow-800 dark:text-yellow-300 underline hover:text-yellow-600 dark:hover:text-yellow-200"
-        >
-          Vérifier mon identité →
-        </Link>
-      </div>
-    </div>
-  );
-}
-
 // ─── Composant interne avec tous les hooks et le JSX ─────────────────
 function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const router = useRouter();
   const [storyUserId, setStoryUserId] = useState<string | null>(null);
   const pathname = usePathname();
-  const { open: notificationsOpen, setOpen: setNotificationsOpen } = useNotifications(); // ✅
+  const { open: notificationsOpen, setOpen: setNotificationsOpen } = useNotifications();
 
   if (!session) return null;
 
@@ -250,7 +226,12 @@ function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
     "/dashboard/premium",
   ];
   const isExempted = exemptedPaths.some(p => pathname.startsWith(p)) || (pathname.startsWith("/dashboard/admin") && isAdmin);
-  const showKycBanner = !isKycVerified && !isExempted;
+
+  // ✅ Redirection forcée vers le KYC si non vérifié, sauf sur les pages exemptées
+  if (!isKycVerified && !isExempted) {
+    router.push("/dashboard/kyc");
+    return null;
+  }
 
   const handleStoryClick = (userId: string) => {
     setStoryUserId(userId);
@@ -268,7 +249,6 @@ function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
           <div className="max-w-3xl mx-auto px-4 py-4 md:px-8 md:py-6">
             <div className="bg-white dark:bg-surface rounded-2xl shadow-2xl min-h-screen p-4 md:p-6">
               <StoriesBar onStoryClick={handleStoryClick} />
-              {showKycBanner && <KycWarningBanner />}
               {children}
             </div>
           </div>
@@ -281,7 +261,6 @@ function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
       <NotificationPrompt />
       <OneSignalRegistrar />
       {storyUserId && <StoryViewer userId={storyUserId} onClose={() => setStoryUserId(null)} />}
-      {/* ✅ Rideau de notifications */}
       <NotificationPanel open={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
     </div>
   );
@@ -297,7 +276,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <DashboardProviders>
       <ChatProvider>
-        <NotificationsProvider>   {/* ✅ Contexte du rideau */}
+        <NotificationsProvider>
           <DashboardInnerLayout>{children}</DashboardInnerLayout>
         </NotificationsProvider>
       </ChatProvider>

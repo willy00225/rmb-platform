@@ -2,7 +2,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 9; // ← 3 tentatives × 3 documents (recto, verso, selfie)
 
 export async function GET() {
   const session = await auth();

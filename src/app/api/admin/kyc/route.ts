@@ -57,15 +57,30 @@ export async function PATCH(req: Request) {
       data: { status: "APPROVED", adminNote },
     });
 
-    // Mise à jour du niveau KYC
+    // Vérifier que les trois documents nécessaires sont approuvés
     const approvedDocs = await prisma.kycDocument.findMany({
       where: { userId: doc.userId, status: "APPROVED" },
       select: { type: true },
     });
-    const types = approvedDocs.map(d => d.type);
-    let newLevel: KycLevel = KycLevel.PHONE;
-    if (types.includes("ID_CARD") && types.includes("SELFIE")) newLevel = KycLevel.ID_VERIFIED;
-    await prisma.user.update({ where: { id: doc.userId }, data: { kycLevel: newLevel } });
+
+    // Un document de type ID_CARD (ancien) est considéré comme recto
+    const hasFront = approvedDocs.some(d => d.type === "ID_CARD" || d.type === "ID_CARD_FRONT");
+    const hasBack = approvedDocs.some(d => d.type === "ID_CARD_BACK");
+    const hasSelfie = approvedDocs.some(d => d.type === "SELFIE");
+
+    let newLevel: KycLevel | undefined = undefined;
+    if (hasFront && hasBack && hasSelfie) {
+      newLevel = KycLevel.ID_VERIFIED;
+    } else if (hasFront) {
+      newLevel = KycLevel.PHONE; // Niveau intermédiaire pour rétrocompatibilité
+    }
+
+    if (newLevel !== undefined) {
+      await prisma.user.update({
+        where: { id: doc.userId },
+        data: { kycLevel: newLevel },
+      });
+    }
 
     // Notification push
     await sendPushNotification({

@@ -1,7 +1,7 @@
 ﻿"use client";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, ChevronRight, Heart, Send, Smile, Trash2 } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Heart, Send, Smile, Trash2, Eye } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -11,6 +11,7 @@ interface Story {
   userId: string;
   mediaUrl: string;
   mediaType: "image" | "video" | string;
+  caption?: string | null; // ✅ légende
 }
 
 interface StoryViewerProps {
@@ -29,6 +30,7 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
   const [showEmoji, setShowEmoji] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [viewsCount, setViewsCount] = useState(0); // ✅ nombre de vues
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const remainingTimeRef = useRef(5000);
   const startTimeRef = useRef(Date.now());
@@ -49,9 +51,11 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
       .catch(() => {});
   }, [userId, session]);
 
+  // Charger les likes et les vues de la story courante
   useEffect(() => {
     if (stories.length === 0) return;
     const story = stories[currentIndex];
+    // Récupérer les likes
     fetch(`/api/stories/${story.id}/reactions`)
       .then((res) => res.json())
       .then((data) => {
@@ -59,6 +63,22 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
         setLiked(data.likes.some((l: any) => l.userId === session?.user?.id));
       })
       .catch(() => {});
+
+    // Récupérer le nombre de vues
+    fetch(`/api/stories/${story.id}/views`)
+      .then((res) => res.json())
+      .then((data) => setViewsCount(data.count || 0))
+      .catch(() => {});
+
+    // Enregistrer la vue (si ce n'est pas l'auteur)
+    if (story.userId !== session?.user?.id) {
+      fetch(`/api/stories/${story.id}/view`, { method: "POST" })
+        .then(() => {
+          // Mettre à jour le compteur localement après l'enregistrement
+          setViewsCount((prev) => prev + 1);
+        })
+        .catch(() => {});
+    }
   }, [currentIndex, stories, session]);
 
   const toggleLike = async () => {
@@ -159,11 +179,9 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
       const res = await fetch(`/api/stories/${storyId}`, { method: "DELETE" });
       if (res.ok) {
         toast.success("Story supprimée");
-        // Retirer la story de la liste locale
         const newStories = stories.filter(s => s.id !== storyId);
         setStories(newStories);
         if (currentIndex >= newStories.length) {
-          // On vient de supprimer la dernière story
           if (newStories.length === 0) onClose();
           else setCurrentIndex(newStories.length - 1);
         }
@@ -177,10 +195,8 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
     }
   };
 
-  // Cas où on demande les stories d'un autre mais il n'en a pas
   if (!userId || (stories.length === 0 && userId !== "me")) return null;
 
-  // Cas où c'est "me" et qu'il n'y a pas de story
   if (userId === "me" && stories.length === 0) {
     return (
       <motion.div
@@ -275,7 +291,7 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 1.05 }}
               transition={{ duration: 0.3 }}
-              className="w-full h-[85vh] mx-4 rounded-2xl overflow-hidden"
+              className="w-full h-[85vh] mx-4 rounded-2xl overflow-hidden relative"
             >
               {story.mediaType === "video" ? (
                 <video
@@ -290,6 +306,12 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
                   alt=""
                   className="w-full h-full object-contain"
                 />
+              )}
+              {/* ✅ Légende */}
+              {story.caption && (
+                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 to-transparent">
+                  <p className="text-white text-sm font-medium">{story.caption}</p>
+                </div>
               )}
             </motion.div>
           </AnimatePresence>
@@ -329,6 +351,12 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
               {likesCount > 0 && (
                 <span className="text-white text-sm font-medium">
                   {likesCount} j&apos;adore{likesCount > 1 ? "nt" : ""}
+                </span>
+              )}
+              {/* ✅ Compteur de vues */}
+              {viewsCount > 0 && (
+                <span className="text-white text-sm font-medium flex items-center gap-1">
+                  <Eye size={16} /> {viewsCount}
                 </span>
               )}
             </div>

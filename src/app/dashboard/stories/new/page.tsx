@@ -14,6 +14,7 @@ export default function NewStoryPage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<"image" | "video">("image");
+  const [caption, setCaption] = useState("");
   const [uploading, setUploading] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,6 +37,7 @@ export default function NewStoryPage() {
   const handleRemove = () => {
     setFile(null);
     setPreview(null);
+    setCaption("");
   };
 
   const handlePublish = async () => {
@@ -52,7 +54,7 @@ export default function NewStoryPage() {
       const storyRes = await fetch("/api/stories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mediaUrl: url, mediaType }),
+        body: JSON.stringify({ mediaUrl: url, mediaType, caption: caption.trim() || null }),
       });
 
       if (!storyRes.ok) throw new Error("Échec de la création de la story");
@@ -157,6 +159,19 @@ export default function NewStoryPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* ✅ Champ de légende (comme WhatsApp) */}
+        {preview && (
+          <div className="mt-4">
+            <textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Ajouter une légende..."
+              rows={2}
+              className="w-full resize-none rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 px-4 py-3 text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
+            />
+          </div>
+        )}
 
         {/* Footer avec bouton de publication */}
         <div className="mt-4">

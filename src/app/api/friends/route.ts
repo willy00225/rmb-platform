@@ -2,6 +2,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { FriendshipStatus } from "@prisma/client";
+import { sendPushNotification } from "@/lib/onesignal"; // ✅ import ajouté
 
 // GET : lister mes amis (acceptés) — pas de KYC requis
 export async function GET(req: Request) {
@@ -77,6 +78,18 @@ export async function POST(req: Request) {
       requesterId: session.user.id,
       addresseeId,
     },
+  });
+
+  // ✅ Notification push au destinataire
+  const requester = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { firstName: true, lastName: true },
+  });
+  const requesterName = requester ? `${requester.firstName} ${requester.lastName}` : "Quelqu'un";
+  await sendPushNotification({
+    headings: { fr: "Nouvelle demande d'ami 👋" },
+    contents: { fr: `${requesterName} souhaite devenir ami avec vous.` },
+    includeExternalUserIds: [addresseeId],
   });
 
   return NextResponse.json(friendship, { status: 201 });

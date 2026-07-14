@@ -45,6 +45,14 @@ function MobileHeaderInline() {
   });
   const unreadCount = unreadData?.count || 0;
 
+  // ✅ Indicateur de lives en cours
+  const { data: livesData } = useQuery({
+    queryKey: ["lives-count"],
+    queryFn: () => fetch("/api/live/rooms").then(res => res.json()),
+    refetchInterval: 30000,
+  });
+  const hasLive = livesData?.length > 0;
+
   const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN";
 
   const menuLinks = [
@@ -91,6 +99,19 @@ function MobileHeaderInline() {
             className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-white/10 text-text-secondary dark:text-text hover:bg-gray-200 dark:hover:bg-white/20 transition"
           >
             <Trophy size={20} />
+          </Link>
+
+          {/* ✅ Bouton Lives avec indicateur de direct */}
+          <Link
+            href="/dashboard/live"
+            className={`w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-white/10 transition relative ${
+              hasLive ? "text-red-500 animate-pulse" : "text-text-secondary dark:text-text"
+            } hover:bg-gray-200 dark:hover:bg-white/20`}
+          >
+            <Radio size={20} />
+            {hasLive && (
+              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-bkg" />
+            )}
           </Link>
 
           <button
@@ -238,6 +259,7 @@ function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
   };
 
   const isAdminPage = pathname.startsWith("/dashboard/admin");
+  const isLivePage = pathname.startsWith("/dashboard/live");
 
   return (
     <div className="min-h-screen bg-bkg overflow-x-hidden">
@@ -246,12 +268,16 @@ function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
       <div className="md:pl-60 lg:pr-80">
         <MobileHeaderInline />
         <main className={`pt-16 md:pt-14 pb-24 md:pb-0 min-h-screen ${isAdminPage ? "pb-36" : ""}`}>
-          <div className="max-w-3xl mx-auto px-4 py-4 md:px-8 md:py-6">
-            <div className="bg-white dark:bg-surface rounded-2xl shadow-2xl min-h-screen p-4 md:p-6">
-              <StoriesBar onStoryClick={handleStoryClick} />
-              {children}
+          {isLivePage ? (
+            <div className="h-full w-full">{children}</div>
+          ) : (
+            <div className="max-w-3xl mx-auto px-4 py-4 md:px-8 md:py-6">
+              <div className="bg-white dark:bg-surface rounded-2xl shadow-2xl min-h-screen p-4 md:p-6">
+                <StoriesBar onStoryClick={handleStoryClick} />
+                {children}
+              </div>
             </div>
-          </div>
+          )}
         </main>
         <MobileNav />
       </div>

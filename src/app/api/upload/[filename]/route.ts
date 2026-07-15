@@ -5,10 +5,10 @@ import { existsSync } from "fs";
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ filename: string }> }
 ) {
-  const { path: filePath } = await params;
-  const fullPath = path.join(process.cwd(), "public", "uploads", ...filePath);
+  const { filename } = await params;
+  const fullPath = path.join(process.cwd(), "public", "uploads", filename);
 
   if (!existsSync(fullPath)) {
     return new NextResponse(null, { status: 404 });

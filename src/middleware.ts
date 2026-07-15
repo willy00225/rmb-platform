@@ -3,13 +3,25 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { rateLimit } from "@/lib/rateLimit";
 
-const limiter = rateLimit({ windowMs: 10_000, max: 60 }); // ← seuil relevé à 60 requêtes / 10 secondes
+const limiter = rateLimit({ windowMs: 10_000, max: 60 });
+
+// Chemins d'API publics : pas de rate limiting
+const publicApiPaths = [
+  "/api/site-config",
+  "/api/auth",
+  "/api/avatar",
+  "/api/cover",
+  "/api/uploads",
+];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1) Rate limiting sur les API, sauf celles d'authentification
-  if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth")) {
+  // 1) Rate limiting sur les API, sauf celles listées comme publiques
+  if (
+    pathname.startsWith("/api/") &&
+    !publicApiPaths.some((p) => pathname.startsWith(p))
+  ) {
     const ip =
       request.headers.get("x-forwarded-for") ||
       request.headers.get("x-real-ip") ||
@@ -28,13 +40,15 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // 2) Pour les pages dashboard, juste vérifier l'authentification
+  // 2) Pour les pages dashboard, vérifier l'authentification
   if (pathname.startsWith("/dashboard")) {
-    const token = await getToken({ req: request, secret: process.env.AUTH_SECRET });
+    const token = await getToken({
+      req: request,
+      secret: process.env.AUTH_SECRET,
+    });
     if (!token?.id) {
       return NextResponse.redirect(new URL("/auth/login", request.url));
     }
-    // La vérification KYC est déléguée au layout dashboard
   }
 
   return NextResponse.next();

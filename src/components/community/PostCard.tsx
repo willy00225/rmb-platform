@@ -49,7 +49,7 @@ interface Post {
   userId: string;
   comments: Comment[];
   likes: PostLike[];
-  sharesCount?: number; // ✅ nombre de partages
+  sharesCount?: number;
   sharedPost?: Post | null;
   sharedBy?: { user: UserBrief }[];
 }
@@ -379,10 +379,25 @@ export function PostCard({
         <div className="mb-4 rounded-xl overflow-hidden">
           {post.mediaType === "video" ? (
             <video controls className="w-full max-h-96 rounded-xl">
-              <source src={post.mediaUrl} type="video/mp4" />
+              <source
+                src={
+                  post.mediaUrl?.startsWith("/uploads/")
+                    ? post.mediaUrl.replace("/uploads/", "/api/uploads/")
+                    : post.mediaUrl
+                }
+                type="video/mp4"
+              />
             </video>
           ) : (
-            <img src={post.mediaUrl} alt="" className="w-full max-h-96 object-cover rounded-xl" />
+            <img
+              src={
+                post.mediaUrl?.startsWith("/uploads/")
+                  ? post.mediaUrl.replace("/uploads/", "/api/uploads/")
+                  : post.mediaUrl
+              }
+              alt=""
+              className="w-full max-h-96 object-cover rounded-xl"
+            />
           )}
         </div>
       )}

@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(filePath, buffer);
 
-    const url = `/uploads/${fileName}`;
+    const url = `/api/uploads/${fileName}`;
     return NextResponse.json({ url });
   } catch (error) {
     console.error("Erreur upload :", error);

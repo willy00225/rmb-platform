@@ -33,7 +33,7 @@ export async function POST(
     return NextResponse.json({ error: "Compte suspendu." }, { status: 403 });
   }
 
-  const { content, parentId } = await req.json();   // ✅ parentId ajouté
+  const { content, parentId, mediaUrl, mediaType } = await req.json();
   if (!content) return NextResponse.json({ error: "Commentaire vide" }, { status: 400 });
 
   const comment = await prisma.comment.create({
@@ -41,7 +41,9 @@ export async function POST(
       content,
       postId,
       userId: session.user.id,
-      parentId: parentId || null,   // ✅ champ parentId (à ajouter dans le schéma Prisma)
+      parentId: parentId || null,
+      mediaUrl: mediaUrl || null,
+      mediaType: mediaType || null,
     },
     include: {
       user: { select: { firstName: true, lastName: true, avatar: true } },

@@ -261,6 +261,8 @@ model Comment {
   userId    String
   content   String
   parentId  String?
+  mediaUrl  String?   // ✅ URL du média
+  mediaType String?   // ✅ "image" ou "video"
   createdAt DateTime @default(now())
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id])

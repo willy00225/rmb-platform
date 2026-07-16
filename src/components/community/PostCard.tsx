@@ -375,32 +375,21 @@ export function PostCard({
         )
       )}
 
-      {post.mediaUrl && (
+      {post.mediaUrl && post.mediaUrl.startsWith("http") ? (
         <div className="mb-4 rounded-xl overflow-hidden">
           {post.mediaType === "video" ? (
             <video controls className="w-full max-h-96 rounded-xl">
-              <source
-                src={
-                  post.mediaUrl?.startsWith("/uploads/")
-                    ? post.mediaUrl.replace("/uploads/", "/api/uploads/")
-                    : post.mediaUrl
-                }
-                type="video/mp4"
-              />
+              <source src={post.mediaUrl} type="video/mp4" />
             </video>
           ) : (
             <img
-              src={
-                post.mediaUrl?.startsWith("/uploads/")
-                  ? post.mediaUrl.replace("/uploads/", "/api/uploads/")
-                  : post.mediaUrl
-              }
+              src={post.mediaUrl}
               alt=""
               className="w-full max-h-96 object-cover rounded-xl"
             />
           )}
         </div>
-      )}
+      ) : null}
 
       <div className="flex items-center gap-6 border-t border-border dark:border-white/10 pt-4">
         <button

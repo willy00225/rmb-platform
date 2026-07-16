@@ -1,19 +1,33 @@
 ﻿"use client";
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Loader2 } from "lucide-react";
+import { MessageCircle, X, Loader2, ChevronLeft, Search } from "lucide-react";
 import { ChatView } from "@/components/chat/ChatView";
 import { Session } from "next-auth";
 import { StreamChat } from "stream-chat";
 import type { Event } from "stream-chat";
 import { useChat } from "@/contexts/ChatContext";
 
+interface ChannelPreview {
+  id: string;
+  name: string;
+  lastMessage?: string;
+  updatedAt?: Date;
+  isPrivate: boolean;
+  friendId?: string;
+}
+
 export function FloatingChat({ session }: { session: Session }) {
-  const { open, openChat, closeChat, channelId, friendId } = useChat();
+  const { open, openChat, closeChat } = useChat();
   const [chatClient, setChatClient] = useState<StreamChat | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const hasConnected = useRef(false);
+
+  const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
+  const [activeFriendId, setActiveFriendId] = useState<string | null>(null);
+  const [channels, setChannels] = useState<ChannelPreview[]>([]);
+  const [loadingChannels, setLoadingChannels] = useState(false);
 
   // Connexion UNIQUE au montage du composant
   useEffect(() => {
@@ -55,37 +69,92 @@ export function FloatingChat({ session }: { session: Session }) {
     };
   }, [session, chatClient]);
 
+  // Charger les conversations récentes
+  useEffect(() => {
+    if (!chatClient || !open || activeChannelId) return;
+    const loadChannels = async () => {
+      setLoadingChannels(true);
+      try {
+        const filter = { members: { $in: [session.user.id] } };
+        const sort: { last_message_at: -1 } = { last_message_at: -1 };
+        const result = await chatClient.queryChannels(filter, sort, {
+          watch: false,
+          state: true,
+        });
+
+        const previews: ChannelPreview[] = result
+          .map((channel) => {
+            const members = Object.values(channel.state.members).filter(
+              (m: any) => m.user_id !== session.user.id
+            );
+            const isPrivate = members.length === 1 && channel.id !== "general";
+            const friendId = isPrivate ? members[0]?.user_id : undefined;
+            const name =
+              isPrivate
+                ? (members[0]?.user?.name as string) || "Ami"
+                : ((channel.data as any)?.name as string) || channel.id || "Sans nom";
+
+            const lastMessage = channel.state.messages?.[channel.state.messages.length - 1];
+            const updatedAt = lastMessage?.created_at
+              ? new Date(lastMessage.created_at)
+              : undefined;
+
+            return {
+              id: channel.id || "",
+              name,
+              lastMessage: lastMessage?.text || undefined,
+              updatedAt,
+              isPrivate,
+              friendId,
+            };
+          })
+          .filter((ch) => ch.id !== "");
+
+        previews.sort((a, b) => {
+          if (a.isPrivate && !b.isPrivate) return -1;
+          if (!a.isPrivate && b.isPrivate) return 1;
+          const timeA = a.updatedAt?.getTime() || 0;
+          const timeB = b.updatedAt?.getTime() || 0;
+          return timeB - timeA;
+        });
+
+        setChannels(previews);
+      } catch (err) {
+        console.error("Erreur chargement des conversations", err);
+      } finally {
+        setLoadingChannels(false);
+      }
+    };
+
+    loadChannels();
+  }, [chatClient, open, activeChannelId, session.user.id]);
+
   // Écouter les nouveaux messages (badge)
   useEffect(() => {
     if (!chatClient) return;
     const handler = (event: Event) => {
       const msg = event as Event & {
-        message?: {
-          user?: { id: string; name?: string };
-          text?: string;
-        };
+        message?: { user?: { id: string; name?: string }; text?: string };
       };
       if (!open && msg.message?.user?.id !== session.user?.id) {
-        setUnreadCount(prev => prev + 1);
-
-        fetch("/api/notify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: session.user.id,
-            title: msg.message?.user?.name || "Nouveau message",
-            message: msg.message?.text || "Vous avez reçu un message.",
-          }),
-        }).catch(() => {});
+        setUnreadCount((prev) => prev + 1);
       }
     };
     chatClient.on("message.new", handler);
     return () => { chatClient.off("message.new", handler); };
   }, [chatClient, open, session.user?.id]);
 
-  useEffect(() => {
-    if (open) setUnreadCount(0);
-  }, [open]);
+  useEffect(() => { if (open) setUnreadCount(0); }, [open]);
+
+  const openConversation = (channelId: string, friendId?: string) => {
+    setActiveChannelId(channelId);
+    if (friendId) setActiveFriendId(friendId);
+  };
+
+  const backToList = () => {
+    setActiveChannelId(null);
+    setActiveFriendId(null);
+  };
 
   return (
     <>
@@ -116,13 +185,75 @@ export function FloatingChat({ session }: { session: Session }) {
               <div className="flex-1 flex items-center justify-center">
                 <Loader2 className="animate-spin text-primary" size={24} />
               </div>
+            ) : activeChannelId ? (
+              /* Conversation active */
+              <div className="flex-1 flex flex-col min-h-0">
+                <div className="flex items-center justify-between p-3 border-b border-border dark:border-white/10">
+                  <button
+                    onClick={backToList}
+                    className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition"
+                  >
+                    <ChevronLeft size={18} className="text-text-secondary" />
+                  </button>
+                  <h3 className="text-sm font-semibold text-text dark:text-white">
+                    {activeFriendId ? "Conversation privée" : "Général"}
+                  </h3>
+                  <div className="w-8" />
+                </div>
+                <div className="flex-1 min-h-0">
+                  <ChatView
+                    session={session}
+                    channelId={activeChannelId}
+                    friendId={activeFriendId || undefined}
+                    externalClient={chatClient}
+                  />
+                </div>
+              </div>
             ) : (
-              <ChatView
-                session={session}
-                channelId={channelId || undefined}
-                friendId={friendId || undefined}
-                externalClient={chatClient}
-              />
+              /* Liste des conversations */
+              <div className="flex-1 flex flex-col min-h-0">
+                <div className="p-3 border-b border-border dark:border-white/10">
+                  <h3 className="text-sm font-semibold text-text dark:text-white">Messages</h3>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  {loadingChannels ? (
+                    <div className="flex items-center justify-center h-full">
+                      <Loader2 className="animate-spin text-primary" size={20} />
+                    </div>
+                  ) : channels.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-text-secondary text-sm">
+                      Aucune conversation récente
+                    </div>
+                  ) : (
+                    channels.map((ch) => (
+                      <button
+                        key={ch.id}
+                        onClick={() => openConversation(ch.id, ch.friendId)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/5 transition text-left"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-shrink-0">
+                          {ch.isPrivate ? ch.name[0] : "#"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-text dark:text-white truncate">
+                            {ch.name}
+                          </p>
+                          {ch.lastMessage && (
+                            <p className="text-xs text-text-secondary truncate">{ch.lastMessage}</p>
+                          )}
+                        </div>
+                        {ch.updatedAt && (
+                          <span className="text-[10px] text-text-secondary flex-shrink-0">
+                            {ch.updatedAt.toLocaleDateString() === new Date().toLocaleDateString()
+                              ? ch.updatedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                              : ch.updatedAt.toLocaleDateString()}
+                          </span>
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
             )}
           </motion.div>
         )}

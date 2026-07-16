@@ -1,35 +1,34 @@
 ﻿"use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Loader2, ChevronLeft, Search } from "lucide-react";
+import { MessageCircle, X, Loader2, ChevronLeft, Users } from "lucide-react";
 import { ChatView } from "@/components/chat/ChatView";
 import { Session } from "next-auth";
 import { StreamChat } from "stream-chat";
-import type { Event } from "stream-chat";
+import type { Event, ChannelMemberResponse, MessageResponse } from "stream-chat";
 import { useChat } from "@/contexts/ChatContext";
+import toast from "react-hot-toast";
 
+/* ---------------------------------- types --------------------------------- */
 interface ChannelPreview {
   id: string;
   name: string;
   lastMessage?: string;
   updatedAt?: Date;
-  isPrivate: boolean;
   friendId?: string;
+  isGeneral?: boolean;
 }
 
-export function FloatingChat({ session }: { session: Session }) {
-  const { open, openChat, closeChat } = useChat();
+interface MessageEvent extends Event {
+  message?: MessageResponse & { user?: { id: string; name?: string }; text?: string };
+}
+
+/* ------------------------------ hooks maison ----------------------------- */
+function useStreamConnection(session: Session) {
   const [chatClient, setChatClient] = useState<StreamChat | null>(null);
   const [connecting, setConnecting] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const hasConnected = useRef(false);
 
-  const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
-  const [activeFriendId, setActiveFriendId] = useState<string | null>(null);
-  const [channels, setChannels] = useState<ChannelPreview[]>([]);
-  const [loadingChannels, setLoadingChannels] = useState(false);
-
-  // Connexion UNIQUE au montage du composant
   useEffect(() => {
     if (!session?.user?.id || hasConnected.current) return;
 
@@ -39,20 +38,23 @@ export function FloatingChat({ session }: { session: Session }) {
       setConnecting(true);
       try {
         const res = await fetch("/api/chat/token");
+        if (!res.ok) throw new Error("Impossible de récupérer le token chat");
         const { token } = await res.json();
         if (!token) {
-          console.warn("Token chat vide, connexion annulée.");
+          toast.error("Token chat vide, connexion impossible.");
           hasConnected.current = false;
           return;
         }
+
         const client = StreamChat.getInstance(process.env.NEXT_PUBLIC_STREAM_API_KEY!);
         await client.connectUser(
           { id: session.user.id, name: session.user.name ?? "Membre" },
           token
         );
         setChatClient(client);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Échec de connexion au chat :", err);
+        toast.error(err?.message ?? "Échec de connexion au chat.");
         hasConnected.current = false;
       } finally {
         setConnecting(false);
@@ -69,14 +71,22 @@ export function FloatingChat({ session }: { session: Session }) {
     };
   }, [session, chatClient]);
 
-  // Charger les conversations récentes
+  return { chatClient, connecting };
+}
+
+function usePrivateChannels(chatClient: StreamChat | null, userId: string, open: boolean) {
+  const [privateChannels, setPrivateChannels] = useState<ChannelPreview[]>([]);
+  const [loadingChannels, setLoadingChannels] = useState(false);
+
   useEffect(() => {
-    if (!chatClient || !open || activeChannelId) return;
-    const loadChannels = async () => {
+    if (!chatClient || !open) return;
+
+    const load = async () => {
       setLoadingChannels(true);
       try {
-        const filter = { members: { $in: [session.user.id] } };
-        const sort: { last_message_at: -1 } = { last_message_at: -1 };
+        // ✅ Cast en any pour contourner la limitation de typage Stream sur $nin
+        const filter = { members: { $in: [userId] }, id: { $nin: ["general"] } } as any;
+        const sort = { last_message_at: -1 as const };
         const result = await chatClient.queryChannels(filter, sort, {
           watch: false,
           state: true,
@@ -85,15 +95,12 @@ export function FloatingChat({ session }: { session: Session }) {
         const previews: ChannelPreview[] = result
           .map((channel) => {
             const members = Object.values(channel.state.members).filter(
-              (m: any) => m.user_id !== session.user.id
+              (m: ChannelMemberResponse) => m.user_id !== userId
             );
-            const isPrivate = members.length === 1 && channel.id !== "general";
-            const friendId = isPrivate ? members[0]?.user_id : undefined;
-            const name =
-              isPrivate
-                ? (members[0]?.user?.name as string) || "Ami"
-                : ((channel.data as any)?.name as string) || channel.id || "Sans nom";
-
+            const friendId = members[0]?.user_id;
+            const name = friendId
+              ? (members[0]?.user?.name as string) || "Ami"
+              : channel.id || "Sans nom";
             const lastMessage = channel.state.messages?.[channel.state.messages.length - 1];
             const updatedAt = lastMessage?.created_at
               ? new Date(lastMessage.created_at)
@@ -102,63 +109,125 @@ export function FloatingChat({ session }: { session: Session }) {
             return {
               id: channel.id || "",
               name,
-              lastMessage: lastMessage?.text || undefined,
+              lastMessage: lastMessage?.text ?? undefined,
               updatedAt,
-              isPrivate,
               friendId,
+              isGeneral: false,
             };
           })
-          .filter((ch) => ch.id !== "");
+          .filter((ch) => ch.id);
 
         previews.sort((a, b) => {
-          if (a.isPrivate && !b.isPrivate) return -1;
-          if (!a.isPrivate && b.isPrivate) return 1;
-          const timeA = a.updatedAt?.getTime() || 0;
-          const timeB = b.updatedAt?.getTime() || 0;
+          const timeA = a.updatedAt?.getTime() ?? 0;
+          const timeB = b.updatedAt?.getTime() ?? 0;
           return timeB - timeA;
         });
 
-        setChannels(previews);
+        setPrivateChannels(previews);
       } catch (err) {
-        console.error("Erreur chargement des conversations", err);
+        console.error("Erreur chargement conversations privées", err);
+        toast.error("Impossible de charger les conversations privées.");
       } finally {
         setLoadingChannels(false);
       }
     };
 
-    loadChannels();
-  }, [chatClient, open, activeChannelId, session.user.id]);
+    load();
+  }, [chatClient, open, userId]);
 
-  // Écouter les nouveaux messages (badge)
+  return { privateChannels, loadingChannels };
+}
+
+function useUnreadMessages(chatClient: StreamChat | null, userId: string, open: boolean) {
+  const [unreadCount, setUnreadCount] = useState(0);
+
   useEffect(() => {
     if (!chatClient) return;
     const handler = (event: Event) => {
-      const msg = event as Event & {
-        message?: { user?: { id: string; name?: string }; text?: string };
-      };
-      if (!open && msg.message?.user?.id !== session.user?.id) {
+      const msg = event as MessageEvent;
+      if (!open && msg.message?.user?.id !== userId) {
         setUnreadCount((prev) => prev + 1);
       }
     };
     chatClient.on("message.new", handler);
-    return () => { chatClient.off("message.new", handler); };
-  }, [chatClient, open, session.user?.id]);
+    return () => {
+      chatClient.off("message.new", handler);
+    };
+  }, [chatClient, open, userId]);
 
-  useEffect(() => { if (open) setUnreadCount(0); }, [open]);
+  useEffect(() => {
+    if (open) setUnreadCount(0);
+  }, [open]);
 
-  const openConversation = (channelId: string, friendId?: string) => {
-    setActiveChannelId(channelId);
-    if (friendId) setActiveFriendId(friendId);
-  };
+  return unreadCount;
+}
 
-  const backToList = () => {
+/* ------------------------------ composant -------------------------------- */
+export function FloatingChat({ session }: { session: Session }) {
+  const { open, openChat, closeChat, friendId } = useChat();
+  const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
+  const [activeFriendId, setActiveFriendId] = useState<string | null>(null);
+
+  const { chatClient, connecting } = useStreamConnection(session);
+  const unreadCount = useUnreadMessages(chatClient, session.user.id, open);
+  const { privateChannels, loadingChannels } = usePrivateChannels(
+    chatClient,
+    session.user.id,
+    open
+  );
+
+  // Quand le chat s'ouvre avec un friendId (depuis un profil ami), ouvrir la conversation
+  useEffect(() => {
+    if (!open || !chatClient || !friendId) return;
+
+    const openPrivateFromContext = async () => {
+      const shortId = (id: string) => id.substring(0, 8);
+      const channelId = `prv-${shortId(session.user.id)}-${shortId(friendId)}`;
+
+      const existingChannel = chatClient.channel("messaging", channelId);
+      await existingChannel.watch();
+
+      setActiveChannelId(channelId);
+      setActiveFriendId(friendId);
+    };
+
+    openPrivateFromContext();
+  }, [open, chatClient, friendId, session.user.id]);
+
+  const conversations: ChannelPreview[] = [
+    {
+      id: "general",
+      name: "Général",
+      lastMessage: "Chat communautaire",
+      updatedAt: undefined,
+      friendId: undefined,
+      isGeneral: true,
+    },
+    ...privateChannels,
+  ];
+
+  const openConversation = useCallback(
+    (channelId: string, friendId?: string) => {
+      setActiveChannelId(channelId);
+      setActiveFriendId(friendId || null);
+    },
+    []
+  );
+
+  const backToList = useCallback(() => {
     setActiveChannelId(null);
     setActiveFriendId(null);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      setActiveChannelId(null);
+      setActiveFriendId(null);
+    }
+  }, [open]);
 
   return (
     <>
-      {/* Bouton flottant */}
       <button
         onClick={() => (open ? closeChat() : openChat())}
         className="fixed bottom-20 md:bottom-6 right-6 z-[100] w-14 h-14 rounded-full bg-primary text-white shadow-[0_4px_20px_rgba(0,90,58,0.5)] hover:bg-primary-hover transition-all flex items-center justify-center border-2 border-white/50"
@@ -171,7 +240,6 @@ export function FloatingChat({ session }: { session: Session }) {
         )}
       </button>
 
-      {/* Fenêtre de chat */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -186,9 +254,8 @@ export function FloatingChat({ session }: { session: Session }) {
                 <Loader2 className="animate-spin text-primary" size={24} />
               </div>
             ) : activeChannelId ? (
-              /* Conversation active */
               <div className="flex-1 flex flex-col min-h-0">
-                <div className="flex items-center justify-between p-3 border-b border-border dark:border-white/10">
+                <div className="flex items-center gap-2 p-3 border-b border-border dark:border-white/10">
                   <button
                     onClick={backToList}
                     className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition"
@@ -196,9 +263,8 @@ export function FloatingChat({ session }: { session: Session }) {
                     <ChevronLeft size={18} className="text-text-secondary" />
                   </button>
                   <h3 className="text-sm font-semibold text-text dark:text-white">
-                    {activeFriendId ? "Conversation privée" : "Général"}
+                    {activeChannelId === "general" ? "Général" : "Conversation privée"}
                   </h3>
-                  <div className="w-8" />
                 </div>
                 <div className="flex-1 min-h-0">
                   <ChatView
@@ -210,7 +276,6 @@ export function FloatingChat({ session }: { session: Session }) {
                 </div>
               </div>
             ) : (
-              /* Liste des conversations */
               <div className="flex-1 flex flex-col min-h-0">
                 <div className="p-3 border-b border-border dark:border-white/10">
                   <h3 className="text-sm font-semibold text-text dark:text-white">Messages</h3>
@@ -220,33 +285,45 @@ export function FloatingChat({ session }: { session: Session }) {
                     <div className="flex items-center justify-center h-full">
                       <Loader2 className="animate-spin text-primary" size={20} />
                     </div>
-                  ) : channels.length === 0 ? (
+                  ) : conversations.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-text-secondary text-sm">
-                      Aucune conversation récente
+                      Aucune conversation
                     </div>
                   ) : (
-                    channels.map((ch) => (
+                    conversations.map((conv) => (
                       <button
-                        key={ch.id}
-                        onClick={() => openConversation(ch.id, ch.friendId)}
+                        key={conv.id}
+                        onClick={() => openConversation(conv.id, conv.friendId)}
                         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/5 transition text-left"
                       >
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-shrink-0">
-                          {ch.isPrivate ? ch.name[0] : "#"}
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold flex-shrink-0 ${
+                            conv.isGeneral
+                              ? "bg-blue-100 text-blue-600"
+                              : "bg-primary/10 text-primary"
+                          }`}
+                        >
+                          {conv.isGeneral ? <Users size={18} /> : conv.name[0]}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-text dark:text-white truncate">
-                            {ch.name}
+                            {conv.name}
                           </p>
-                          {ch.lastMessage && (
-                            <p className="text-xs text-text-secondary truncate">{ch.lastMessage}</p>
+                          {conv.lastMessage && (
+                            <p className="text-xs text-text-secondary truncate">
+                              {conv.lastMessage}
+                            </p>
                           )}
                         </div>
-                        {ch.updatedAt && (
+                        {conv.updatedAt && (
                           <span className="text-[10px] text-text-secondary flex-shrink-0">
-                            {ch.updatedAt.toLocaleDateString() === new Date().toLocaleDateString()
-                              ? ch.updatedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                              : ch.updatedAt.toLocaleDateString()}
+                            {conv.updatedAt.toLocaleDateString() ===
+                            new Date().toLocaleDateString()
+                              ? conv.updatedAt.toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : conv.updatedAt.toLocaleDateString()}
                           </span>
                         )}
                       </button>

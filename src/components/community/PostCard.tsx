@@ -21,6 +21,7 @@ import {
   GroupIcon,
 } from "lucide-react";
 import { UserName } from "@/components/ui/UserName";
+import { MediaViewer } from "@/components/ui/MediaViewer";
 import { useRouter } from "next/navigation";
 import { useChat } from "@/contexts/ChatContext";
 import toast from "react-hot-toast";
@@ -105,6 +106,11 @@ export function PostCard({
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const [sharesCount, setSharesCount] = useState(post.sharesCount || 0);
   const [showShareOptions, setShowShareOptions] = useState(false);
+
+  // États pour le MediaViewer
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerSrc, setViewerSrc] = useState("");
+  const [viewerType, setViewerType] = useState<"image" | "video">("image");
 
   const isOwner = currentUserId === post.userId;
 
@@ -280,8 +286,8 @@ export function PostCard({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         sharedPostId: post.id,
-        mediaUrl: post.mediaUrl,   // ✅ média du post original
-        mediaType: post.mediaType, // ✅ type du média
+        mediaUrl: post.mediaUrl,
+        mediaType: post.mediaType,
       }),
     });
     if (res.ok) {
@@ -471,9 +477,17 @@ export function PostCard({
 
       {/* Média du post */}
       {post.mediaUrl && (
-        <div className="mb-4 rounded-xl overflow-hidden">
+        <div className="mb-4 rounded-xl overflow-hidden cursor-pointer">
           {post.mediaType === "video" ? (
-            <video controls className="w-full max-h-96 rounded-xl">
+            <video
+              className="w-full max-h-96 rounded-xl"
+              onClick={(e) => {
+                e.stopPropagation();
+                setViewerSrc(post.mediaUrl!);
+                setViewerType("video");
+                setViewerOpen(true);
+              }}
+            >
               <source src={post.mediaUrl} type="video/mp4" />
             </video>
           ) : (
@@ -481,6 +495,12 @@ export function PostCard({
               src={post.mediaUrl}
               alt=""
               className="w-full max-h-96 object-cover rounded-xl"
+              onClick={(e) => {
+                e.stopPropagation();
+                setViewerSrc(post.mediaUrl!);
+                setViewerType("image");
+                setViewerOpen(true);
+              }}
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
               }}
@@ -794,6 +814,14 @@ export function PostCard({
           </div>
         </div>
       )}
+
+      {/* MediaViewer plein écran */}
+      <MediaViewer
+        open={viewerOpen}
+        onClose={() => setViewerOpen(false)}
+        src={viewerSrc}
+        type={viewerType}
+      />
     </motion.div>
   );
 }

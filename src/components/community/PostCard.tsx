@@ -37,8 +37,8 @@ interface Comment {
   parentId?: string | null;
   replies?: Comment[];
   likes?: { userId: string }[];
-  mediaUrl?: string | null;      // ✅ média du commentaire
-  mediaType?: string | null;     // ✅ type (image/video)
+  mediaUrl?: string | null;
+  mediaType?: string | null;
 }
 interface PostLike {
   userId: string;
@@ -78,7 +78,7 @@ export function PostCard({
   const [liked, setLiked] = useState(post.likes.some((l) => l.userId === currentUserId));
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState("");
-  const [commentFile, setCommentFile] = useState<File | null>(null);          // ✅ fichier média
+  const [commentFile, setCommentFile] = useState<File | null>(null);
   const [commentFilePreview, setCommentFilePreview] = useState<string | null>(null);
   const [isUploadingComment, setIsUploadingComment] = useState(false);
   const commentFileRef = useRef<HTMLInputElement>(null);
@@ -90,7 +90,7 @@ export function PostCard({
 
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
-  const [replyFile, setReplyFile] = useState<File | null>(null);               // ✅ fichier pour réponse
+  const [replyFile, setReplyFile] = useState<File | null>(null);
   const [replyFilePreview, setReplyFilePreview] = useState<string | null>(null);
   const [isUploadingReply, setIsUploadingReply] = useState(false);
   const replyFileRef = useRef<HTMLInputElement>(null);
@@ -106,7 +106,6 @@ export function PostCard({
     0
   );
 
-  // ----- Helper : uploader un fichier vers Cloudinary -----
   const uploadFileToCloudinary = async (file: File): Promise<string | null> => {
     const formData = new FormData();
     formData.append("file", file);
@@ -163,8 +162,6 @@ export function PostCard({
       setNewComment("");
       setCommentFile(null);
       setCommentFilePreview(null);
-    } else {
-      toast.error("Erreur lors de l'ajout du commentaire");
     }
   };
 
@@ -206,8 +203,6 @@ export function PostCard({
       setReplyingTo(null);
       setReplyFile(null);
       setReplyFilePreview(null);
-    } else {
-      toast.error("Erreur lors de la réponse");
     }
   };
 
@@ -292,32 +287,166 @@ export function PostCard({
       ? post.content?.substring(0, MAX_CONTENT_LENGTH) + "..."
       : post.content;
 
-  // ----- Rendu d'un commentaire (principal ou réponse) -----
-  const renderComment = (comment: Comment) => (
-    <div className="flex-1">
-      <p className="text-sm text-text">
-        <span className="font-medium">
-          <UserName
-            userId={comment.userId}
-            firstName={comment.user.firstName}
-            lastName={comment.user.lastName}
-            isPremium={comment.user.isPremium}
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="card-premium p-6 relative"
+    >
+      {isOwner && (
+        <div className="absolute top-4 right-4 z-10">
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition"
+          >
+            <MoreHorizontal size={18} className="text-text-secondary" />
+          </button>
+          {showMenu && (
+            <div className="absolute right-0 mt-1 w-36 bg-white dark:bg-surface border border-border dark:border-white/10 rounded-xl shadow-lg py-1 z-20">
+              <button
+                onClick={() => {
+                  setIsEditing(true);
+                  setShowMenu(false);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text hover:bg-gray-50 dark:hover:bg-white/5"
+              >
+                <Pencil size={14} /> Modifier
+              </button>
+              <button
+                onClick={() => {
+                  setShowMenu(false);
+                  handleDelete();
+                }}
+                disabled={isDeleting}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+              >
+                <Trash2 size={14} /> Supprimer
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {post.sharedPost && (
+        <div className="mb-4 p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10">
+          <div className="flex items-center gap-2 text-xs text-text-secondary mb-2">
+            <Share2 size={14} />
+            <span className="flex items-center gap-1">
+              <UserName
+                userId={post.userId}
+                firstName={post.user.firstName}
+                lastName={post.user.lastName}
+                isPremium={post.user.isPremium}
+              />
+              a partagé
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+              {post.sharedPost.user.avatar ? (
+                <img src={post.sharedPost.user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <User size={14} />
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-text flex items-center gap-1">
+                <UserName
+                  userId={post.sharedPost.userId}
+                  firstName={post.sharedPost.user.firstName}
+                  lastName={post.sharedPost.user.lastName}
+                  isPremium={post.sharedPost.user.isPremium}
+                />
+              </p>
+              <p className="text-sm text-text-secondary">{post.sharedPost.content}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+          {post.user.avatar ? (
+            <img src={post.user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+          ) : (
+            <User size={18} />
+          )}
+        </div>
+        <div>
+          <div className="text-sm font-semibold text-text flex items-center gap-1">
+            <UserName
+              userId={post.userId}
+              firstName={post.user.firstName}
+              lastName={post.user.lastName}
+              isPremium={post.user.isPremium}
+            />
+          </div>
+          <p className="text-xs text-text-secondary">
+            {new Date(post.createdAt).toLocaleDateString("fr-FR", {
+              day: "numeric",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </p>
+        </div>
+      </div>
+
+      {isEditing ? (
+        <div className="mb-4">
+          <textarea
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            rows={3}
+            className="w-full resize-none rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 px-3 py-2 text-sm text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
+            autoFocus
           />
-        </span>{" "}
-        {comment.content}
-      </p>
-      {/* ✅ Affichage du média du commentaire */}
-      {comment.mediaUrl && (
-        <div className="mt-2 rounded-xl overflow-hidden max-w-[200px]">
-          {comment.mediaType === "video" ? (
-            <video controls className="w-full h-auto rounded-xl">
-              <source src={comment.mediaUrl} type="video/mp4" />
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={handleSaveEdit}
+              disabled={!editContent.trim()}
+              className="px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-hover disabled:opacity-50 transition flex items-center gap-1"
+            >
+              <Check size={14} /> Enregistrer
+            </button>
+            <button
+              onClick={() => {
+                setIsEditing(false);
+                setEditContent(post.content);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-white/10 text-text text-sm font-medium hover:bg-gray-300 dark:hover:bg-white/20 transition flex items-center gap-1"
+            >
+              <X size={14} /> Annuler
+            </button>
+          </div>
+        </div>
+      ) : (
+        post.content && (
+          <div className="mb-4">
+            <p className="text-text leading-relaxed">{displayedContent}</p>
+            {contentIsLong && (
+              <button
+                onClick={() => setIsContentExpanded(!isContentExpanded)}
+                className="text-primary text-sm font-medium hover:underline mt-1"
+              >
+                {isContentExpanded ? "Voir moins" : "Voir plus"}
+              </button>
+            )}
+          </div>
+        )
+      )}
+
+      {post.mediaUrl && (
+        <div className="mb-4 rounded-xl overflow-hidden">
+          {post.mediaType === "video" ? (
+            <video controls className="w-full max-h-96 rounded-xl">
+              <source src={post.mediaUrl} type="video/mp4" />
             </video>
           ) : (
             <img
-              src={comment.mediaUrl}
+              src={post.mediaUrl}
               alt=""
-              className="w-full h-auto object-cover rounded-xl"
+              className="w-full max-h-96 object-cover rounded-xl"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
               }}
@@ -325,51 +454,34 @@ export function PostCard({
           )}
         </div>
       )}
-      <div className="flex items-center gap-4 mt-1">
-        <span className="text-xs text-text-secondary">
-          {new Date(comment.createdAt).toLocaleTimeString("fr-FR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </span>
+
+      <div className="flex items-center gap-6 border-t border-border dark:border-white/10 pt-4">
         <button
-          onClick={() => handleLikeComment(comment.id)}
-          className={`flex items-center gap-1 text-xs ${
-            comment.likes?.some((l) => l.userId === currentUserId)
-              ? "text-red-500"
-              : "text-text-secondary"
-          } hover:text-red-500 transition`}
+          onClick={handleLike}
+          className={`flex items-center gap-2 text-sm ${
+            liked ? "text-primary" : "text-text-secondary"
+          } hover:text-primary transition`}
         >
-          <Heart
-            size={12}
-            fill={
-              comment.likes?.some((l) => l.userId === currentUserId)
-                ? "currentColor"
-                : "none"
-            }
-          />
-          {comment.likes?.length || 0}
+          <ThumbsUp size={16} fill={liked ? "currentColor" : "none"} />
+          {likes.length} J&apos;aime{likes.length > 1 ? "s" : ""}
         </button>
         <button
-          onClick={() =>
-            setReplyingTo(replyingTo === comment.id ? null : comment.id)
-          }
-          className="text-xs text-text-secondary hover:text-text transition flex items-center gap-1"
+          onClick={() => setShowComments(!showComments)}
+          className="flex items-center gap-2 text-sm text-text-secondary hover:text-text transition"
         >
-          <CornerDownRight size={12} />
-          Répondre
+          <MessageCircle size={16} />
+          {totalComments} commentaire{totalComments > 1 ? "s" : ""}
+        </button>
+        <button
+          onClick={handleShare}
+          disabled={isSharing}
+          className="flex items-center gap-2 text-sm text-text-secondary hover:text-text transition"
+        >
+          <Share2 size={16} />
+          {sharesCount > 0 && <span className="text-xs">{sharesCount}</span>}
+          Partager
         </button>
       </div>
-    </div>
-  );
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="card-premium p-6 relative"
-    >
-      {/* ... menu auteur, partage, en-tête, contenu, média du post ... (inchangé) */}
 
       {showComments && (
         <div className="mt-4 space-y-4">
@@ -379,76 +491,180 @@ export function PostCard({
                 <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-text-secondary">
                   <User size={12} />
                 </div>
-                {renderComment(comment)}
-              </div>
-
-              {/* Réponses */}
-              {comment.replies && comment.replies.length > 0 && (
-                <div className="mt-2 space-y-2 pl-6">
-                  {comment.replies.map((reply) => (
-                    <div key={reply.id} className="flex items-start gap-3">
-                      <div className="w-5 h-5 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-text-secondary">
-                        <User size={10} />
-                      </div>
-                      {renderComment(reply)}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Formulaire de réponse */}
-              {replyingTo === comment.id && (
-                <div className="mt-2 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <textarea
-                      value={replyContent}
-                      onChange={(e) => setReplyContent(e.target.value)}
-                      placeholder="Votre réponse..."
-                      rows={1}
-                      className="flex-1 resize-none rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 px-3 py-2 text-sm text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
-                    />
-                    <button
-                      onClick={() => handleReply(comment.id)}
-                      disabled={(!replyContent.trim() && !replyFile) || isUploadingReply}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-hover disabled:opacity-40 transition"
-                    >
-                      {isUploadingReply ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                    </button>
-                    <label className="cursor-pointer text-text-secondary hover:text-primary transition">
-                      <ImageIcon size={16} />
-                      <input
-                        type="file"
-                        accept="image/*,video/*"
-                        ref={replyFileRef}
-                        className="hidden"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          if (f) {
-                            setReplyFile(f);
-                            setReplyFilePreview(URL.createObjectURL(f));
-                          }
-                        }}
+                <div className="flex-1">
+                  <p className="text-sm text-text">
+                    <span className="font-medium">
+                      <UserName
+                        userId={comment.userId}
+                        firstName={comment.user.firstName}
+                        lastName={comment.user.lastName}
+                        isPremium={comment.user.isPremium}
                       />
-                    </label>
+                    </span>{" "}
+                    {comment.content}
+                  </p>
+                  {comment.mediaUrl && (
+                    <div className="mt-2 rounded-xl overflow-hidden max-w-[200px]">
+                      {comment.mediaType === "video" ? (
+                        <video controls className="w-full h-auto rounded-xl">
+                          <source src={comment.mediaUrl} type="video/mp4" />
+                        </video>
+                      ) : (
+                        <img src={comment.mediaUrl} alt="" className="w-full h-auto object-cover rounded-xl" />
+                      )}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-4 mt-1">
+                    <span className="text-xs text-text-secondary">
+                      {new Date(comment.createdAt).toLocaleTimeString("fr-FR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    <button
+                      onClick={() => handleLikeComment(comment.id)}
+                      className={`flex items-center gap-1 text-xs ${
+                        comment.likes?.some((l) => l.userId === currentUserId)
+                          ? "text-red-500"
+                          : "text-text-secondary"
+                      } hover:text-red-500 transition`}
+                    >
+                      <Heart
+                        size={12}
+                        fill={
+                          comment.likes?.some((l) => l.userId === currentUserId)
+                            ? "currentColor"
+                            : "none"
+                        }
+                      />
+                      {comment.likes?.length || 0}
+                    </button>
+                    <button
+                      onClick={() =>
+                        setReplyingTo(replyingTo === comment.id ? null : comment.id)
+                      }
+                      className="text-xs text-text-secondary hover:text-text transition flex items-center gap-1"
+                    >
+                      <CornerDownRight size={12} />
+                      Répondre
+                    </button>
                   </div>
-                  {replyFilePreview && (
-                    <div className="relative inline-block">
-                      <img src={replyFilePreview} alt="Preview" className="w-16 h-16 object-cover rounded-lg" />
-                      <button
-                        onClick={() => { setReplyFile(null); setReplyFilePreview(null); }}
-                        className="absolute -top-1 -right-1 bg-black/50 text-white rounded-full p-0.5"
-                      >
-                        <X size={12} />
-                      </button>
+
+                  {comment.replies && comment.replies.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {comment.replies.map((reply) => (
+                        <div key={reply.id} className="flex items-start gap-3 pl-6">
+                          <div className="w-5 h-5 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-text-secondary">
+                            <User size={10} />
+                          </div>
+                          <div>
+                            <p className="text-sm text-text">
+                              <span className="font-medium">
+                                <UserName
+                                  userId={reply.userId}
+                                  firstName={reply.user.firstName}
+                                  lastName={reply.user.lastName}
+                                  isPremium={reply.user.isPremium}
+                                />
+                              </span>{" "}
+                              {reply.content}
+                            </p>
+                            {reply.mediaUrl && (
+                              <div className="mt-2 rounded-xl overflow-hidden max-w-[200px]">
+                                {reply.mediaType === "video" ? (
+                                  <video controls className="w-full h-auto rounded-xl">
+                                    <source src={reply.mediaUrl} type="video/mp4" />
+                                  </video>
+                                ) : (
+                                  <img src={reply.mediaUrl} alt="" className="w-full h-auto object-cover rounded-xl" />
+                                )}
+                              </div>
+                            )}
+                            <div className="flex items-center gap-4 mt-1">
+                              <span className="text-xs text-text-secondary">
+                                {new Date(reply.createdAt).toLocaleTimeString("fr-FR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                              <button
+                                onClick={() => handleLikeComment(reply.id)}
+                                className={`flex items-center gap-1 text-xs ${
+                                  reply.likes?.some((l) => l.userId === currentUserId)
+                                    ? "text-red-500"
+                                    : "text-text-secondary"
+                                } hover:text-red-500 transition`}
+                              >
+                                <Heart
+                                  size={12}
+                                  fill={
+                                    reply.likes?.some((l) => l.userId === currentUserId)
+                                      ? "currentColor"
+                                      : "none"
+                                  }
+                                />
+                                {reply.likes?.length || 0}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {replyingTo === comment.id && (
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <textarea
+                          value={replyContent}
+                          onChange={(e) => setReplyContent(e.target.value)}
+                          placeholder="Votre réponse..."
+                          rows={1}
+                          className="flex-1 resize-none rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 px-3 py-2 text-sm text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
+                        />
+                        <button
+                          onClick={() => handleReply(comment.id)}
+                          disabled={(!replyContent.trim() && !replyFile) || isUploadingReply}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-hover disabled:opacity-40 transition"
+                        >
+                          {isUploadingReply ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                        </button>
+                        <label className="cursor-pointer text-text-secondary hover:text-primary transition">
+                          <ImageIcon size={16} />
+                          <input
+                            type="file"
+                            accept="image/*,video/*"
+                            ref={replyFileRef}
+                            className="hidden"
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (f) {
+                                setReplyFile(f);
+                                setReplyFilePreview(URL.createObjectURL(f));
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                      {replyFilePreview && (
+                        <div className="relative inline-block">
+                          <img src={replyFilePreview} alt="Preview" className="w-16 h-16 object-cover rounded-lg" />
+                          <button
+                            onClick={() => { setReplyFile(null); setReplyFilePreview(null); }}
+                            className="absolute -top-1 -right-1 bg-black/50 text-white rounded-full p-0.5"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
+              </div>
             </div>
           ))}
 
-          {/* Formulaire de commentaire principal */}
-          <div className="space-y-2">
+          <div className="space-y-2 mt-2">
             <div className="flex items-center gap-2">
               <textarea
                 value={newComment}

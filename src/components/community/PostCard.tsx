@@ -16,8 +16,13 @@ import {
   CornerDownRight,
   ImageIcon,
   Loader2,
+  Film,
+  Users,
+  GroupIcon,
 } from "lucide-react";
 import { UserName } from "@/components/ui/UserName";
+import { useRouter } from "next/navigation";
+import { useChat } from "@/contexts/ChatContext";
 import toast from "react-hot-toast";
 
 // Types
@@ -73,6 +78,8 @@ export function PostCard({
   onShare?: (postId: string) => void;
   onDelete?: (postId: string) => void;
 }) {
+  const router = useRouter();
+  const { openChatWithFriend } = useChat();
   const [comments, setComments] = useState<Comment[]>(post.comments);
   const [likes, setLikes] = useState<PostLike[]>(post.likes);
   const [liked, setLiked] = useState(post.likes.some((l) => l.userId === currentUserId));
@@ -97,7 +104,7 @@ export function PostCard({
 
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const [sharesCount, setSharesCount] = useState(post.sharesCount || 0);
-  const [isSharing, setIsSharing] = useState(false);
+  const [showShareOptions, setShowShareOptions] = useState(false);
 
   const isOwner = currentUserId === post.userId;
 
@@ -106,6 +113,7 @@ export function PostCard({
     0
   );
 
+  // Upload helper
   const uploadFileToCloudinary = async (file: File): Promise<string | null> => {
     const formData = new FormData();
     formData.append("file", file);
@@ -264,13 +272,17 @@ export function PostCard({
     setIsDeleting(false);
   };
 
-  // ----- Partage immédiat -----
-  const handleShare = async () => {
-    setIsSharing(true);
+  // ----- Actions de partage -----
+  const handleShareNow = async () => {
+    setShowShareOptions(false);
     const res = await fetch("/api/posts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sharedPostId: post.id }),
+      body: JSON.stringify({
+        sharedPostId: post.id,
+        mediaUrl: post.mediaUrl,   // ✅ média du post original
+        mediaType: post.mediaType, // ✅ type du média
+      }),
     });
     if (res.ok) {
       setSharesCount((prev) => prev + 1);
@@ -278,7 +290,24 @@ export function PostCard({
     } else {
       toast.error("Erreur lors du partage");
     }
-    setIsSharing(false);
+  };
+
+  const handleShareToStory = () => {
+    setShowShareOptions(false);
+    const params = new URLSearchParams();
+    if (post.mediaUrl) params.set("mediaUrl", post.mediaUrl);
+    if (post.content) params.set("caption", post.content);
+    router.push(`/dashboard/stories/new?${params.toString()}`);
+  };
+
+  const handleSendToFriend = () => {
+    setShowShareOptions(false);
+    openChatWithFriend(post.userId);
+  };
+
+  const handleShareToGroup = () => {
+    setShowShareOptions(false);
+    router.push(`/dashboard/groups?sharePost=${post.id}`);
   };
 
   const contentIsLong = post.content && post.content.length > MAX_CONTENT_LENGTH;
@@ -293,6 +322,7 @@ export function PostCard({
       animate={{ opacity: 1, y: 0 }}
       className="card-premium p-6 relative"
     >
+      {/* Menu propriétaire */}
       {isOwner && (
         <div className="absolute top-4 right-4 z-10">
           <button
@@ -327,6 +357,7 @@ export function PostCard({
         </div>
       )}
 
+      {/* Post partagé */}
       {post.sharedPost && (
         <div className="mb-4 p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10">
           <div className="flex items-center gap-2 text-xs text-text-secondary mb-2">
@@ -364,6 +395,7 @@ export function PostCard({
         </div>
       )}
 
+      {/* En-tête utilisateur */}
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
           {post.user.avatar ? (
@@ -392,6 +424,7 @@ export function PostCard({
         </div>
       </div>
 
+      {/* Contenu éditable ou texte */}
       {isEditing ? (
         <div className="mb-4">
           <textarea
@@ -436,6 +469,7 @@ export function PostCard({
         )
       )}
 
+      {/* Média du post */}
       {post.mediaUrl && (
         <div className="mb-4 rounded-xl overflow-hidden">
           {post.mediaType === "video" ? (
@@ -455,6 +489,7 @@ export function PostCard({
         </div>
       )}
 
+      {/* Actions */}
       <div className="flex items-center gap-6 border-t border-border dark:border-white/10 pt-4">
         <button
           onClick={handleLike}
@@ -472,17 +507,65 @@ export function PostCard({
           <MessageCircle size={16} />
           {totalComments} commentaire{totalComments > 1 ? "s" : ""}
         </button>
-        <button
-          onClick={handleShare}
-          disabled={isSharing}
-          className="flex items-center gap-2 text-sm text-text-secondary hover:text-text transition"
-        >
-          <Share2 size={16} />
-          {sharesCount > 0 && <span className="text-xs">{sharesCount}</span>}
-          Partager
-        </button>
+
+        {/* ✅ Bouton Partager avec menu déroulant */}
+        <div className="relative">
+          <button
+            onClick={() => setShowShareOptions(!showShareOptions)}
+            className="flex items-center gap-2 text-sm text-text-secondary hover:text-text transition"
+          >
+            <Share2 size={16} />
+            {sharesCount > 0 && <span className="text-xs">{sharesCount}</span>}
+            Partager
+          </button>
+          {showShareOptions && (
+            <div className="absolute bottom-full left-0 mb-2 w-56 bg-white dark:bg-surface border border-border dark:border-white/10 rounded-xl shadow-lg py-1 z-30">
+              <button
+                onClick={handleShareNow}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-gray-50 dark:hover:bg-white/5 transition"
+              >
+                <Share2 size={16} className="text-primary" />
+                <div className="text-left">
+                  <p className="font-medium">Partager maintenant</p>
+                  <p className="text-xs text-text-secondary">Dans le fil d'actualité</p>
+                </div>
+              </button>
+              <button
+                onClick={handleShareToStory}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-gray-50 dark:hover:bg-white/5 transition"
+              >
+                <Film size={16} className="text-purple-500" />
+                <div className="text-left">
+                  <p className="font-medium">Partager en story</p>
+                  <p className="text-xs text-text-secondary">Visible pendant 24h</p>
+                </div>
+              </button>
+              <button
+                onClick={handleSendToFriend}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-gray-50 dark:hover:bg-white/5 transition"
+              >
+                <Users size={16} className="text-blue-500" />
+                <div className="text-left">
+                  <p className="font-medium">Envoyer à un ami</p>
+                  <p className="text-xs text-text-secondary">Via la messagerie</p>
+                </div>
+              </button>
+              <button
+                onClick={handleShareToGroup}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-gray-50 dark:hover:bg-white/5 transition"
+              >
+                <GroupIcon size={16} className="text-green-500" />
+                <div className="text-left">
+                  <p className="font-medium">Partager dans un groupe</p>
+                  <p className="text-xs text-text-secondary">Choisir un groupe</p>
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Commentaires */}
       {showComments && (
         <div className="mt-4 space-y-4">
           {comments.map((comment) => (

@@ -6,58 +6,101 @@ export async function GET() {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
-  // ✅ Vérification KYC (décommentez si nécessaire)
-  // const user = await prisma.user.findUnique({
-  //   where: { id: session.user.id },
-  //   select: { kycLevel: true },
-  // });
-  // if (!user || (user.kycLevel !== "ID_VERIFIED" && user.kycLevel !== "AMBASSADOR")) {
-  //   return NextResponse.json(
-  //     { error: "Votre identité doit être vérifiée pour voir les suggestions.", code: "KYC_REQUIRED" },
-  //     { status: 403 }
-  //   );
-  // }
+  const currentUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, village: true, city: true, fonction: true },
+  });
+  if (!currentUser) return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 });
 
-  // Trouver des personnes qui partagent des relations communes avec l'utilisateur
-  const userRelations = await prisma.familyRelation.findMany({
-    where: { OR: [{ fromUserId: session.user.id }, { toUserId: session.user.id }] },
+  // Amis déjà existants (pour ne pas les suggérer)
+  const friendships = await prisma.friendship.findMany({
+    where: {
+      OR: [{ requesterId: session.user.id }, { addresseeId: session.user.id }],
+      status: "ACCEPTED",
+    },
+  });
+  const existingFriendIds = new Set(
+    friendships.map(f => (f.requesterId === session.user.id ? f.addresseeId : f.requesterId))
+  );
+  existingFriendIds.add(session.user.id);
+
+  // Amis d'amis
+  const friendIds = Array.from(existingFriendIds);
+  const friendsOfFriends = await prisma.friendship.findMany({
+    where: {
+      OR: [
+        { requesterId: { in: friendIds } },
+        { addresseeId: { in: friendIds } },
+      ],
+      status: "ACCEPTED",
+    },
+  });
+  const friendsOfFriendsIds = new Set<string>();
+  for (const f of friendsOfFriends) {
+    const candidate =
+      f.requesterId === session.user.id || existingFriendIds.has(f.requesterId)
+        ? f.addresseeId
+        : f.requesterId;
+    if (!existingFriendIds.has(candidate)) friendsOfFriendsIds.add(candidate);
+  }
+
+  // Même village ou ville
+  const localUsers = await prisma.user.findMany({
+    where: {
+      id: { notIn: Array.from(existingFriendIds) },
+      OR: [
+        { village: currentUser.village || undefined },
+        { city: currentUser.city || undefined },
+      ],
+    },
+    select: { id: true, firstName: true, lastName: true, avatar: true, village: true, city: true },
+    take: 20,
   });
 
-  const relatedUserIds = new Set<string>();
-  for (const rel of userRelations) {
-    relatedUserIds.add(rel.fromUserId);
-    relatedUserIds.add(rel.toUserId);
-  }
-  relatedUserIds.delete(session.user.id);
+  const suggestionsMap = new Map<
+    string,
+    { id: string; firstName: string; lastName: string; avatar: string | null; reason: string }
+  >();
 
-  const suggestions: { id: string; firstName: string; lastName: string; avatar: string | null; reason: string }[] = [];
-
-  for (const id of relatedUserIds) {
-    const theirRelations = await prisma.familyRelation.findMany({
-      where: { OR: [{ fromUserId: id }, { toUserId: id }] },
+  // Amis d'amis
+  if (friendsOfFriendsIds.size > 0) {
+    const users = await prisma.user.findMany({
+      where: { id: { in: Array.from(friendsOfFriendsIds) } },
+      select: { id: true, firstName: true, lastName: true, avatar: true },
     });
-    for (const rel of theirRelations) {
-      const otherId = rel.fromUserId === id ? rel.toUserId : rel.fromUserId;
-      if (otherId === session.user.id || relatedUserIds.has(otherId)) continue;
-      const alreadyLinked = await prisma.familyRelation.findFirst({
-        where: {
-          OR: [
-            { fromUserId: session.user.id, toUserId: otherId },
-            { fromUserId: otherId, toUserId: session.user.id },
-          ],
-        },
-      });
-      if (!alreadyLinked) {
-        const otherUser = await prisma.user.findUnique({ where: { id: otherId }, select: { id: true, firstName: true, lastName: true, avatar: true } });
-        if (otherUser && !suggestions.find(s => s.id === otherUser.id)) {
-          suggestions.push({
-            ...otherUser,
-            reason: `Connaît ${rel.relation} commun`,
-          });
-        }
+    for (const u of users) {
+      suggestionsMap.set(u.id, { ...u, reason: "Ami d'ami" });
+    }
+  }
+
+  // Même localité
+  for (const u of localUsers) {
+    if (!suggestionsMap.has(u.id)) {
+      const reason =
+        u.village === currentUser.village
+          ? `Même village (${u.village})`
+          : `Même ville (${u.city})`;
+      suggestionsMap.set(u.id, { ...u, reason });
+    }
+  }
+
+  // Même profession
+  if (currentUser.fonction) {
+    const sameJob = await prisma.user.findMany({
+      where: {
+        fonction: currentUser.fonction,
+        id: { notIn: Array.from(existingFriendIds) },
+      },
+      select: { id: true, firstName: true, lastName: true, avatar: true },
+      take: 10,
+    });
+    for (const u of sameJob) {
+      if (!suggestionsMap.has(u.id)) {
+        suggestionsMap.set(u.id, { ...u, reason: `Même profession (${currentUser.fonction})` });
       }
     }
   }
 
-  return NextResponse.json(suggestions.slice(0, 10));
+  const suggestions = Array.from(suggestionsMap.values()).slice(0, 15);
+  return NextResponse.json(suggestions);
 }

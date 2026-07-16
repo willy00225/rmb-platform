@@ -13,7 +13,7 @@ import { StreamChat, Channel as StreamChannel } from "stream-chat";
 import "stream-chat-react/dist/css/index.css";
 import { Send, Mic, X } from "lucide-react";
 
-// ─── Input personnalisé avec notes vocales (exporté) ───
+// ─── Input personnalisé avec notes vocales (inchangé) ───
 export function CustomMessageInput({ channel }: { channel: StreamChannel }) {
   const [text, setText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -179,27 +179,77 @@ export function CustomMessageInput({ channel }: { channel: StreamChannel }) {
 export function ChatView({
   session,
   channelId,
+  friendId,
   externalClient,
 }: {
   session: Session;
   channelId?: string;
+  friendId?: string;
   externalClient: StreamChat;
 }) {
   const [channel, setChannel] = useState<StreamChannel | null>(null);
   const [loading, setLoading] = useState(true);
+  const [friendName, setFriendName] = useState<string>("");
+  const isResolved = useRef(false);
 
   useEffect(() => {
     if (!externalClient || !session?.user?.id) return;
+    if (isResolved.current) return;
 
-    const generalChannel = externalClient.channel("messaging", channelId || "general", {
-      members: [session.user.id],
-    });
-    generalChannel.watch().then(() => {
-      if (!channelId) generalChannel.update({ name: "Général" } as Record<string, unknown>);
-      setChannel(generalChannel);
-      setLoading(false);
-    });
-  }, [externalClient, channelId, session.user.id]);
+    const resolveChannel = async () => {
+      isResolved.current = true;
+      setLoading(true);
+
+      try {
+        let targetChannel: StreamChannel;
+
+        // Conversation privée avec un ami
+        if (friendId) {
+          const usersResponse = await externalClient.queryUsers({ id: { $in: [friendId] } });
+          const friend = usersResponse.users[0];
+          const name = friend?.name || "Ami";
+          setFriendName(name);
+
+          targetChannel = externalClient.channel(
+            "messaging",
+            `private-${[session.user.id, friendId].sort().join("-")}`,
+            {
+              members: [session.user.id, friendId],
+            }
+          );
+        }
+        // Canal spécifique (groupe, live, etc.)
+        else if (channelId) {
+          targetChannel = externalClient.channel("messaging", channelId, {
+            members: [session.user.id],
+          });
+        }
+        // Canal général par défaut
+        else {
+          targetChannel = externalClient.channel("messaging", "general", {
+            members: [session.user.id],
+          });
+        }
+
+        await targetChannel.watch();
+
+        if (friendId && friendName) {
+          await (targetChannel as any).updatePartial({ set: { name: friendName } });
+        }
+        if (!channelId && !friendId) {
+          await (targetChannel as any).updatePartial({ set: { name: "Général" } });
+        }
+
+        setChannel(targetChannel);
+      } catch (err) {
+        console.error("Erreur résolution canal :", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    resolveChannel();
+  }, [externalClient, channelId, friendId, session.user.id]);
 
   if (loading || !channel) {
     return (

@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-// Interface correspondant à la structure attendue par PostCard
+// Types (identiques à votre version)
 interface Post {
   id: string;
   content: string;
@@ -25,7 +25,6 @@ interface Post {
   likes: { userId: string }[];
   sharedPost?: Post | null;
 }
-
 interface Comment {
   id: string;
   content: string;
@@ -47,14 +46,17 @@ export default function FeedPage() {
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<string | null>(null);
   const [sharedPostId, setSharedPostId] = useState<string | null>(null);
+  const [feedTab, setFeedTab] = useState<"recent" | "for_you">("recent"); // ✅ onglet
 
-  // Récupération des posts typée
+  // Requête paginée selon l'onglet
   const { data: posts = [], isLoading } = useQuery<Post[]>({
-    queryKey: ["posts"],
-    queryFn: () => fetch("/api/posts").then(res => res.json()),
+    queryKey: ["posts", feedTab],
+    queryFn: () =>
+      fetch(`/api/posts?feed=${feedTab}&limit=30`).then((res) => res.json()),
+    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60,
   });
 
-  // Mutation de création de post
   const createPostMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch("/api/posts", {
@@ -89,6 +91,30 @@ export default function FeedPage() {
   return (
     <div className="space-y-6 animate-fadeInUp">
       <h1 className="text-3xl font-display font-bold text-text">Fil d'actualité</h1>
+
+      {/* ✅ Onglets Récent / Pour vous */}
+      <div className="flex gap-3">
+        <button
+          onClick={() => setFeedTab("recent")}
+          className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+            feedTab === "recent"
+              ? "bg-primary text-white"
+              : "bg-gray-100 dark:bg-white/5 text-text-secondary hover:bg-gray-200 dark:hover:bg-white/10"
+          }`}
+        >
+          Récent
+        </button>
+        <button
+          onClick={() => setFeedTab("for_you")}
+          className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+            feedTab === "for_you"
+              ? "bg-primary text-white"
+              : "bg-gray-100 dark:bg-white/5 text-text-secondary hover:bg-gray-200 dark:hover:bg-white/10"
+          }`}
+        >
+          Pour vous
+        </button>
+      </div>
 
       {/* Zone de publication */}
       <div className="rounded-[var(--radius-card)] bg-white dark:bg-surface border border-border dark:border-white/10 shadow-[var(--shadow-card)] p-6">

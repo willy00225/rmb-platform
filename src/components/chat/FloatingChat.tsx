@@ -13,7 +13,7 @@ export function FloatingChat({ session }: { session: Session }) {
   const [chatClient, setChatClient] = useState<StreamChat | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const hasConnected = useRef(false); // ✅ empêche les doubles connexions
+  const hasConnected = useRef(false);
 
   // Connexion UNIQUE au montage du composant
   useEffect(() => {
@@ -28,7 +28,7 @@ export function FloatingChat({ session }: { session: Session }) {
         const { token } = await res.json();
         if (!token) {
           console.warn("Token chat vide, connexion annulée.");
-          hasConnected.current = false; // autorise un nouvel essai en cas d'échec
+          hasConnected.current = false;
           return;
         }
         const client = StreamChat.getInstance(process.env.NEXT_PUBLIC_STREAM_API_KEY!);
@@ -39,7 +39,7 @@ export function FloatingChat({ session }: { session: Session }) {
         setChatClient(client);
       } catch (err) {
         console.error("Échec de connexion au chat :", err);
-        hasConnected.current = false; // autorise un nouvel essai en cas d'échec
+        hasConnected.current = false;
       } finally {
         setConnecting(false);
       }
@@ -47,16 +47,15 @@ export function FloatingChat({ session }: { session: Session }) {
 
     connect();
 
-    // Cleanup lors du démontage du composant (l'utilisateur quitte la page)
     return () => {
       if (chatClient) {
         chatClient.disconnectUser();
         hasConnected.current = false;
       }
     };
-  }, [session, chatClient]); // chatClient ajouté pour le cleanup
+  }, [session, chatClient]);
 
-  // Écouter les nouveaux messages (si besoin pour le badge)
+  // Écouter les nouveaux messages (badge)
   useEffect(() => {
     if (!chatClient) return;
     const handler = (event: Event) => {
@@ -121,6 +120,7 @@ export function FloatingChat({ session }: { session: Session }) {
               <ChatView
                 session={session}
                 channelId={channelId || undefined}
+                friendId={friendId || undefined}
                 externalClient={chatClient}
               />
             )}

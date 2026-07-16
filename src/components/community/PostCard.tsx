@@ -375,7 +375,7 @@ export function PostCard({
         )
       )}
 
-      {post.mediaUrl && post.mediaUrl.startsWith("http") ? (
+      {post.mediaUrl && (
         <div className="mb-4 rounded-xl overflow-hidden">
           {post.mediaType === "video" ? (
             <video controls className="w-full max-h-96 rounded-xl">
@@ -386,10 +386,14 @@ export function PostCard({
               src={post.mediaUrl}
               alt=""
               className="w-full max-h-96 object-cover rounded-xl"
+              onError={(e) => {
+                // Si l'image ne charge pas, on cache le conteneur
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
             />
           )}
         </div>
-      ) : null}
+      )}
 
       <div className="flex items-center gap-6 border-t border-border dark:border-white/10 pt-4">
         <button

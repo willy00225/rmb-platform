@@ -84,15 +84,18 @@ function usePrivateChannels(chatClient: StreamChat | null, userId: string, open:
     const load = async () => {
       setLoadingChannels(true);
       try {
-        // ✅ Cast en any pour contourner la limitation de typage Stream sur $nin
-        const filter = { members: { $in: [userId] }, id: { $nin: ["general"] } } as any;
+        // ✅ Filtre simple : tous les canaux de l'utilisateur
+        const filter = { members: { $in: [userId] } };
         const sort = { last_message_at: -1 as const };
         const result = await chatClient.queryChannels(filter, sort, {
           watch: false,
           state: true,
         });
 
-        const previews: ChannelPreview[] = result
+        // ✅ On exclut le canal "general" côté client
+        const filtered = result.filter((channel) => channel.id !== "general");
+
+        const previews: ChannelPreview[] = filtered
           .map((channel) => {
             const members = Object.values(channel.state.members).filter(
               (m: ChannelMemberResponse) => m.user_id !== userId

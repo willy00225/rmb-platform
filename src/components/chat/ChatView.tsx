@@ -210,13 +210,13 @@ export function ChatView({
           const name = friend?.name || "Ami";
           setFriendName(name);
 
-          targetChannel = externalClient.channel(
-            "messaging",
-            `private-${[session.user.id, friendId].sort().join("-")}`,
-            {
-              members: [session.user.id, friendId],
-            }
-          );
+          // ✅ ID court pour respecter la limite de 64 caractères
+          const shortId = (id: string) => id.substring(0, 8);
+          const privateChannelId = `prv-${shortId(session.user.id)}-${shortId(friendId)}`;
+
+          targetChannel = externalClient.channel("messaging", privateChannelId, {
+            members: [session.user.id, friendId],
+          });
         }
         // Canal spécifique (groupe, live, etc.)
         else if (channelId) {

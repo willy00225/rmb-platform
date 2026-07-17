@@ -1,10 +1,11 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
-import { EventDetailClient } from "./_components/EventDetailClient";
+import { GroupDetailClient } from "./_components/GroupDetailClient";
 
-export default async function EventDetailPage({
+export const dynamic = 'force-dynamic';
+
+export default async function GroupDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -14,58 +15,70 @@ export default async function EventDetailPage({
 
   const { id } = await params;
 
-  const event = await prisma.event.findUnique({
+  const group = await prisma.group.findUnique({
     where: { id },
     include: {
-      organizer: { select: { id: true, firstName: true, lastName: true, avatar: true } },
-      _count: { select: { participations: true } },
-      participations: {
-        where: { userId: session.user.id },
-        select: { id: true },
+      members: {
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+        },
       },
+      posts: {
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      },
+      creator: { select: { firstName: true, lastName: true } },
     },
   });
+  if (!group) notFound();
 
-  if (!event) notFound();
+  const isMember = group.members.some((m) => m.userId === session.user.id);
 
-  const alreadyRegistered = event.participations.length > 0;
+  // Serialization for PostCard
+  const serializedPosts = group.posts.map((p) => ({
+    id: p.id,
+    content: p.content,
+    mediaUrl: null,
+    mediaType: null,
+    createdAt: p.createdAt.toISOString(),
+    userId: p.userId,
+    user: {
+      id: p.userId,
+      firstName: p.user.firstName,
+      lastName: p.user.lastName,
+      avatar: p.user.avatar,
+      isPremium: false,
+    },
+    comments: [],
+    likes: [],
+    sharesCount: 0,
+    sharedPost: null,
+  }));
 
-  async function registerAction() {
-    "use server";
-    const session = await auth();
-    if (!session?.user) redirect("/auth/login");
-
-    const existing = await prisma.participation.findFirst({
-      where: { eventId: id, userId: session.user.id },
-    });
-    if (existing) return;
-
-    await prisma.participation.create({
-      data: {
-        eventId: id,
-        userId: session.user.id,
-        status: "REGISTERED",
-      },
-    });
-    revalidatePath(`/dashboard/events/${id}`);
-    redirect(`/dashboard/events/${id}`);
-  }
+  const members = group.members.map((m) => ({
+    id: m.user.id,
+    firstName: m.user.firstName,
+    lastName: m.user.lastName,
+    avatar: m.user.avatar,
+    role: m.role,
+  }));
 
   return (
-    <EventDetailClient
-      event={{
-        id: event.id,
-        title: event.title,
-        description: event.description,
-        startDate: event.startDate.toISOString(),
-        endDate: event.endDate.toISOString(),
-        location: event.location,
-        imageUrl: event.imageUrl,
-        organizer: event.organizer,
-        participantCount: event._count.participations,
+    <GroupDetailClient
+      group={{
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        imageUrl: group.imageUrl,
+        memberCount: group.members.length,
+        creatorName: `${group.creator.firstName} ${group.creator.lastName}`,
+        posts: serializedPosts,
+        members,
+        isMember,
       }}
-      alreadyRegistered={alreadyRegistered}
-      registerAction={registerAction}
+      currentUserId={session.user.id}
     />
   );
 }

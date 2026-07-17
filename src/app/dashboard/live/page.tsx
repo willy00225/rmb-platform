@@ -2,8 +2,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
-import { Loader2, Plus, Radio, Users, Eye, UserCheck } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Radio,
+  Eye,
+  UserCheck,
+  Users,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { useSession } from "next-auth/react";
 
@@ -28,14 +38,12 @@ export default function LiveListPage() {
   const [filter, setFilter] = useState<"all" | "friends">("all");
   const [page, setPage] = useState(1);
 
-  // Récupération des lives
   const { data: lives = [], isLoading } = useQuery<LiveRoom[]>({
     queryKey: ["lives"],
     queryFn: () => fetch("/api/live/rooms").then((res) => res.json()),
-    refetchInterval: 15000, // actualisation automatique toutes les 15s
+    refetchInterval: 15000,
   });
 
-  // Récupération des amis (pour le filtre)
   const { data: friends = [] } = useQuery<{ id: string }[]>({
     queryKey: ["friends", "accepted"],
     queryFn: () => fetch("/api/friends?status=ACCEPTED").then((res) => res.json()),
@@ -44,13 +52,11 @@ export default function LiveListPage() {
 
   const friendIds = new Set(friends.map((f: any) => f.friend?.id).filter(Boolean));
 
-  // Filtrage
   const filteredLives =
     filter === "friends"
       ? lives.filter((live) => live.host && friendIds.has(live.host.id))
       : lives;
 
-  // Pagination
   const totalPages = Math.ceil(filteredLives.length / LIVES_PER_PAGE);
   const paginatedLives = filteredLives.slice(
     (page - 1) * LIVES_PER_PAGE,
@@ -71,7 +77,6 @@ export default function LiveListPage() {
       toast.success("Live créé !");
       setTitle("");
       setDescription("");
-      // Redirection directe vers le live
       if (data.liveId) {
         window.location.href = `/dashboard/live/${data.liveId}`;
       }
@@ -86,23 +91,38 @@ export default function LiveListPage() {
   };
 
   return (
-    <div className="space-y-6 h-full flex flex-col">
-      {/* En-tête avec bouton de création */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-display font-bold text-text">Lives</h1>
-        <Button onClick={handleCreate} disabled={createLiveMutation.isPending} variant="primary">
+    <div className="space-y-6 h-full flex flex-col animate-fadeInUp pb-10">
+      {/* En-tête */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-display font-bold text-text flex items-center gap-2">
+            <span className="relative flex h-3 w-3 mr-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+            </span>
+            Lives
+          </h1>
+          <p className="text-text-secondary text-sm mt-1">
+            Rejoignez des directs ou lancez le vôtre
+          </p>
+        </div>
+        <Button onClick={handleCreate} disabled={createLiveMutation.isPending} variant="primary" size="lg">
           <Plus size={18} /> Lancer un live
         </Button>
       </div>
 
       {/* Formulaire rapide de création */}
-      <div className="card-premium p-4 flex flex-col sm:flex-row gap-3">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="card-premium p-4 flex flex-col sm:flex-row gap-3"
+      >
         <input
           type="text"
           placeholder="Titre du live"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="flex-1 px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:outline-none focus:border-primary"
+          className="flex-1 px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
         />
         <Button
           onClick={handleCreate}
@@ -117,89 +137,128 @@ export default function LiveListPage() {
           )}
           <span className="ml-2">{createLiveMutation.isPending ? "Création..." : "Démarrer"}</span>
         </Button>
-      </div>
+      </motion.div>
 
-      {/* Filtres */}
-      <div className="flex gap-3">
-        <button
-          onClick={() => { setFilter("all"); setPage(1); }}
-          className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
-            filter === "all"
-              ? "bg-primary text-white"
-              : "bg-gray-100 dark:bg-white/5 text-text-secondary hover:bg-gray-200 dark:hover:bg-white/10"
-          }`}
-        >
-          <Radio size={16} className="inline mr-1" /> Tous
-        </button>
-        <button
-          onClick={() => { setFilter("friends"); setPage(1); }}
-          className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
-            filter === "friends"
-              ? "bg-primary text-white"
-              : "bg-gray-100 dark:bg-white/5 text-text-secondary hover:bg-gray-200 dark:hover:bg-white/10"
-          }`}
-        >
-          <UserCheck size={16} className="inline mr-1" /> Amis
-        </button>
-        <span className="ml-auto text-sm text-text-secondary self-center">
-          {filteredLives.length} live{filteredLives.length > 1 ? "s" : ""}
+      {/* Filtres et compteur */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex gap-2 bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
+          <button
+            onClick={() => { setFilter("all"); setPage(1); }}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              filter === "all"
+                ? "bg-white dark:bg-surface text-text shadow-sm"
+                : "text-text-secondary hover:text-text"
+            }`}
+          >
+            <Users size={16} /> Tous
+          </button>
+          <button
+            onClick={() => { setFilter("friends"); setPage(1); }}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              filter === "friends"
+                ? "bg-white dark:bg-surface text-text shadow-sm"
+                : "text-text-secondary hover:text-text"
+            }`}
+          >
+            <UserCheck size={16} /> Amis
+          </button>
+        </div>
+        <span className="text-sm text-text-secondary">
+          {filteredLives.length} live{filteredLives.length > 1 ? "s" : ""} en cours
         </span>
       </div>
 
       {/* Liste des lives */}
       {isLoading ? (
-        <div className="flex-1 flex justify-center items-center">
-          <Loader2 className="animate-spin text-primary" size={32} />
+        <div className="flex-1 flex justify-center items-center py-20">
+          <Loader2 className="animate-spin text-primary" size={36} />
         </div>
       ) : paginatedLives.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center text-text-secondary">
-          <Radio size={48} className="mb-4 opacity-50" />
-          <p>Aucun live en cours.</p>
-          <p className="text-sm mt-1">Soyez le premier à lancer un direct !</p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex-1 flex flex-col items-center justify-center text-center text-text-secondary py-20"
+        >
+          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+            <Radio size={36} className="text-primary" />
+          </div>
+          <h2 className="text-xl font-semibold text-text mb-2">Aucun live en cours</h2>
+          <p className="text-text-secondary max-w-md">
+            Soyez le premier à lancer un direct et à rassembler la communauté !
+          </p>
+        </motion.div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: {
+                opacity: 1,
+                transition: { staggerChildren: 0.08 },
+              },
+            }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+          >
             {paginatedLives.map((live) => (
-              <Link key={live.id} href={`/dashboard/live/${live.id}`}>
-                <div className="card-premium p-4 hover:shadow-lg transition group relative overflow-hidden">
-                  {/* Simulacre de miniature (dégradé animé) */}
-                  <div className="w-full h-32 rounded-xl bg-gradient-to-br from-red-500/20 via-primary/20 to-secondary/20 mb-3 flex items-center justify-center relative">
-                    <span className="absolute top-2 left-2 px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-500 text-white animate-pulse flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white" /> LIVE
-                    </span>
-                    <Eye size={32} className="text-text-secondary/50 group-hover:scale-110 transition" />
+              <motion.div
+                key={live.id}
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  visible: { opacity: 1, y: 0 },
+                }}
+                whileHover={{ y: -4 }}
+              >
+                <Link href={`/dashboard/live/${live.id}`}>
+                  <div className="card-premium p-0 overflow-hidden hover:shadow-lg transition-shadow group">
+                    {/* Miniature */}
+                    <div className="w-full h-40 bg-gradient-to-br from-red-500/20 via-primary/20 to-secondary/20 relative flex items-center justify-center">
+                      <span className="absolute top-3 left-3 px-2.5 py-1 text-[11px] font-bold rounded-full bg-red-500 text-white animate-pulse flex items-center gap-1.5 shadow-lg">
+                        <span className="w-2 h-2 rounded-full bg-white" /> LIVE
+                      </span>
+                      <Radio size={40} className="text-white/40 group-hover:scale-110 transition-transform" />
+                      {/* Avatar de l'hôte superposé en bas à droite */}
+                      {live.host?.avatar && (
+                        <div className="absolute bottom-3 right-3 w-8 h-8 rounded-full border-2 border-white/50 overflow-hidden">
+                          <img src={live.host.avatar} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-semibold text-text truncate">{live.title}</h3>
+                      <p className="text-xs text-text-secondary mt-1 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                        {live.host?.firstName} {live.host?.lastName}
+                      </p>
+                    </div>
                   </div>
-                  <h3 className="font-semibold text-text truncate">{live.title}</h3>
-                  <p className="text-xs text-text-secondary mt-1">
-                    {live.host?.firstName} {live.host?.lastName}
-                  </p>
-                </div>
-              </Link>
+                </Link>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-4">
+            <div className="flex items-center justify-center gap-3 mt-4">
               <Button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                variant="ghost"
+                variant="secondary"
                 size="sm"
               >
-                Précédent
+                <ChevronLeft size={16} className="mr-1" /> Précédent
               </Button>
-              <span className="flex items-center text-text-secondary text-sm">
+              <span className="text-sm font-medium text-text-secondary">
                 {page} / {totalPages}
               </span>
               <Button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={page === totalPages}
-                variant="ghost"
+                variant="secondary"
                 size="sm"
               >
-                Suivant
+                Suivant <ChevronRight size={16} className="ml-1" />
               </Button>
             </div>
           )}

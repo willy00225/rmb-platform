@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Plus, User } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { motion } from "framer-motion";
 
 interface Story {
   id: string;
@@ -26,18 +27,20 @@ export function StoriesBar({ onStoryClick }: { onStoryClick: (userId: string) =>
   const { data: session } = useSession();
   const [users, setUsers] = useState<StoryUser[]>([]);
   const [myStories, setMyStories] = useState<Story[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     fetch("/api/stories")
-      .then(res => res.json())
+      .then((res) => res.json())
       .then((data: Story[]) => {
         const currentUserId = session?.user?.id;
-        const mine = data.filter(s => s.userId === currentUserId);
+        const mine = data.filter((s) => s.userId === currentUserId);
         setMyStories(mine);
 
         const others = data.reduce<StoryUser[]>((acc, story) => {
           if (story.userId === currentUserId) return acc;
-          const existing = acc.find(u => u.userId === story.userId);
+          const existing = acc.find((u) => u.userId === story.userId);
           if (existing) {
             existing.stories.push(story);
           } else {
@@ -53,50 +56,82 @@ export function StoriesBar({ onStoryClick }: { onStoryClick: (userId: string) =>
         }, []);
         setUsers(others);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [session]);
 
+  if (loading) {
+    return (
+      <div className="flex gap-4 overflow-x-auto pb-4 px-1">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="flex flex-col items-center gap-1.5 flex-shrink-0">
+            <div className="w-[72px] h-[72px] rounded-full bg-gray-200 dark:bg-white/10 animate-pulse" />
+            <div className="w-12 h-3 rounded-full bg-gray-200 dark:bg-white/10 animate-pulse" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
-      {/* Mon cercle */}
-      <button
+    <div className="flex gap-4 overflow-x-auto pb-4 px-1 scrollbar-hide">
+      {/* Ma story */}
+      <motion.button
+        whileTap={{ scale: 0.95 }}
         onClick={() => onStoryClick("me")}
-        className="flex flex-col items-center gap-1 flex-shrink-0"
+        className="flex flex-col items-center gap-1.5 flex-shrink-0 group"
       >
-        <div className="w-16 h-16 rounded-full border-2 border-dashed border-primary bg-gray-50 dark:bg-white/5 flex items-center justify-center overflow-hidden">
-          {myStories.length > 0 ? (
-            <img
-              src={myStories[myStories.length - 1].mediaUrl}
-              alt="Ma story"
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <Plus size={24} className="text-primary" />
-          )}
+        <div
+          className={`w-[72px] h-[72px] rounded-full p-[2px] ${
+            myStories.length > 0
+              ? "bg-gradient-to-br from-primary via-secondary to-accent"
+              : "border-2 border-dashed border-primary/60 hover:border-primary"
+          } transition-colors`}
+        >
+          <div className="w-full h-full rounded-full bg-white dark:bg-surface flex items-center justify-center overflow-hidden relative">
+            {myStories.length > 0 ? (
+              <img
+                src={myStories[myStories.length - 1].mediaUrl}
+                alt="Ma story"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <Plus size={28} className="text-primary" />
+            )}
+          </div>
         </div>
-        <span className="text-xs font-medium text-primary">Ma story</span>
-      </button>
+        <span className={`text-xs font-medium ${myStories.length > 0 ? "text-primary" : "text-text-secondary"}`}>
+          Ma story
+        </span>
+      </motion.button>
 
       {/* Autres utilisateurs */}
-      {users.map(user => (
-        <button
+      {users.map((user) => (
+        <motion.button
           key={user.userId}
+          whileTap={{ scale: 0.95 }}
           onClick={() => onStoryClick(user.userId)}
-          className="flex flex-col items-center gap-1 flex-shrink-0"
+          className="flex flex-col items-center gap-1.5 flex-shrink-0 group"
         >
-          <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-br from-primary via-secondary to-accent">
+          <div className="w-[72px] h-[72px] rounded-full p-[2.5px] bg-gradient-to-br from-primary via-secondary to-accent shadow-sm">
             <div className="w-full h-full rounded-full bg-white dark:bg-surface flex items-center justify-center overflow-hidden">
               {user.avatar ? (
-                <img src={user.avatar} alt="" className="w-full h-full object-cover" />
+                <img
+                  src={user.avatar}
+                  alt={`${user.firstName} ${user.lastName}`}
+                  className="w-full h-full object-cover"
+                />
               ) : (
-                <User size={24} className="text-text-secondary" />
+                <div className="w-full h-full bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center">
+                  <User size={30} className="text-text-secondary" />
+                </div>
               )}
             </div>
           </div>
-          <span className="text-xs text-text-secondary truncate max-w-[64px]">
+          <span className="text-xs text-text-secondary truncate max-w-[72px] group-hover:text-text transition-colors">
             {user.firstName}
           </span>
-        </button>
+        </motion.button>
       ))}
     </div>
   );

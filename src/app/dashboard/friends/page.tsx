@@ -5,8 +5,18 @@ export const dynamic = 'force-dynamic'; // Désactive le prérendu
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/Button";
-import { Loader2, UserPlus, UserCheck, Search } from "lucide-react";
+import {
+  Loader2,
+  UserPlus,
+  UserCheck,
+  Search,
+  MessageCircle,
+  Clock,
+  Users,
+  UserX,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { useChat } from "@/contexts/ChatContext";
 import { UserName } from "@/components/ui/UserName";
@@ -27,6 +37,7 @@ interface FriendRequest {
     id: string;
     firstName: string;
     lastName: string;
+    avatar?: string | null;
   };
 }
 
@@ -37,6 +48,7 @@ interface Friend {
     id: string;
     firstName: string;
     lastName: string;
+    avatar?: string | null;
   };
 }
 
@@ -44,26 +56,40 @@ export default function FriendsPage() {
   const { data: session } = useSession();
   const { openChatWithFriend } = useChat();
   const queryClient = useQueryClient();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Amis acceptés
   const { data: friends = [], isLoading: friendsLoading } = useQuery<Friend[]>({
     queryKey: ["friends", "accepted"],
-    queryFn: () => fetch("/api/friends?status=ACCEPTED").then(res => res.json()),
+    queryFn: () => fetch("/api/friends?status=ACCEPTED").then((res) => res.json()),
   });
 
-  // Demandes en attente
+  // Demandes en attente (reçues)
   const { data: pendingRequests = [] } = useQuery<FriendRequest[]>({
     queryKey: ["friends", "pending"],
-    queryFn: () => fetch("/api/friends?status=PENDING").then(res => res.json()),
+    queryFn: () => fetch("/api/friends?status=PENDING").then((res) => res.json()),
   });
 
-  // Recherche
+  // Recherche de membres
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
-    const res = await fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`);
-    if (res.ok) setSearchResults(await res.json());
+    setIsSearching(true);
+    try {
+      const res = await fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults(data);
+      } else {
+        toast.error("Erreur lors de la recherche");
+      }
+    } catch {
+      toast.error("Erreur réseau");
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   // Ajouter un ami
@@ -73,11 +99,18 @@ export default function FriendsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ addresseeId: userId }),
-      }).then(res => {
-        if (!res.ok) return res.json().then(err => { throw new Error(err.error || "Erreur"); });
+      }).then((res) => {
+        if (!res.ok)
+          return res.json().then((err) => {
+            throw new Error(err.error || "Erreur");
+          });
         return res.json();
       }),
-    onSuccess: () => toast.success("Invitation envoyée"),
+    onSuccess: () => {
+      toast.success("Invitation envoyée");
+      // Retirer l'utilisateur des résultats de recherche
+      setSearchResults((prev) => prev.filter((u) => u.id !== addFriendMutation.variables));
+    },
     onError: (err: Error) => toast.error(err.message),
   });
 
@@ -90,10 +123,10 @@ export default function FriendsPage() {
         body: JSON.stringify({ action: "accept" }),
       }),
     onSuccess: () => {
-      toast.success("Ami ajouté");
+      toast.success("Ami ajouté !");
       queryClient.invalidateQueries({ queryKey: ["friends"] });
     },
-    onError: () => toast.error("Erreur"),
+    onError: () => toast.error("Erreur lors de l'acceptation"),
   });
 
   // Refuser une invitation
@@ -108,74 +141,155 @@ export default function FriendsPage() {
       toast.success("Invitation refusée");
       queryClient.invalidateQueries({ queryKey: ["friends"] });
     },
-    onError: () => toast.error("Erreur"),
+    onError: () => toast.error("Erreur lors du refus"),
   });
 
   return (
-    <div className="space-y-8 pb-24 md:pb-0">
-      <h1 className="text-3xl font-display font-bold text-white">Amis & Contacts</h1>
-
-      {/* Recherche de membres */}
-      <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-lg">
-        <h2 className="text-lg font-semibold text-white mb-4">Rechercher un membre</h2>
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-          <input
-            type="text"
-            placeholder="Nom ou email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 px-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-brand-500"
-          />
-          <Button onClick={handleSearch} variant="primary" className="w-full sm:w-auto">
-            <Search size={18} /> Rechercher
-          </Button>
+    <div className="space-y-8 animate-fadeInUp pb-10">
+      {/* En-tête */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-display font-bold text-text flex items-center gap-2">
+            <Users size={28} className="text-primary" />
+            Amis & Contacts
+          </h1>
+          <p className="text-text-secondary text-sm mt-1">
+            {friends.length} ami{friends.length > 1 ? "s" : ""}
+          </p>
         </div>
-        {searchResults.length > 0 && (
-          <div className="mt-4 space-y-3">
-            {searchResults.map((user) => (
-              <div key={user.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-xl bg-white/5 gap-3 sm:gap-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-400 flex-shrink-0">
-                    {user.firstName[0]}{user.lastName[0]}
-                  </div>
-                  <div>
-                    <p className="text-white font-medium">
-                      <UserName userId={user.id} firstName={user.firstName} lastName={user.lastName} />
-                    </p>
-                    <p className="text-sm text-gray-400 truncate max-w-[150px] sm:max-w-none">{user.email}</p>
-                  </div>
-                </div>
-                <Button
-                  onClick={() => addFriendMutation.mutate(user.id)}
-                  size="sm"
-                  variant="primary"
-                  className="w-full sm:w-auto"
-                  disabled={addFriendMutation.isPending}
-                >
-                  <UserPlus size={16} /> Ajouter
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Demandes en attente */}
+      {/* Recherche de membres */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="card-premium p-6"
+      >
+        <h2 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
+          <Search size={20} className="text-primary" />
+          Rechercher un membre
+        </h2>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="text"
+            placeholder="Nom, prénom ou email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSearch();
+            }}
+            className="flex-1 px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text placeholder-text-secondary focus:outline-none focus:border-primary transition"
+          />
+          <Button
+            onClick={handleSearch}
+            disabled={isSearching || !searchQuery.trim()}
+            variant="primary"
+            className="w-full sm:w-auto"
+          >
+            {isSearching ? (
+              <Loader2 className="animate-spin" size={18} />
+            ) : (
+              <Search size={18} />
+            )}
+            <span className="ml-2">Rechercher</span>
+          </Button>
+        </div>
+
+        {/* Résultats de recherche */}
+        <AnimatePresence>
+          {searchResults.length > 0 && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="mt-4 overflow-hidden"
+            >
+              <div className="space-y-3 pt-4 border-t border-border dark:border-white/10">
+                {searchResults.map((user) => (
+                  <motion.div
+                    key={user.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 gap-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-shrink-0 overflow-hidden">
+                        {user.avatar ? (
+                          <img src={user.avatar} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          `${user.firstName[0]}${user.lastName[0]}`
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-text font-medium">
+                          <UserName
+                            userId={user.id}
+                            firstName={user.firstName}
+                            lastName={user.lastName}
+                          />
+                        </p>
+                        <p className="text-xs text-text-secondary truncate max-w-[200px]">
+                          {user.email}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => addFriendMutation.mutate(user.id)}
+                      size="sm"
+                      variant="primary"
+                      className="w-full sm:w-auto"
+                      disabled={addFriendMutation.isPending}
+                    >
+                      <UserPlus size={16} className="mr-1" /> Ajouter
+                    </Button>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+
+      {/* Invitations en attente */}
       {pendingRequests.length > 0 && (
-        <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-lg">
-          <h2 className="text-lg font-semibold text-white mb-4">Invitations en attente</h2>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="card-premium p-6"
+        >
+          <h2 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
+            <Clock size={20} className="text-primary" />
+            Invitations en attente
+            <span className="text-sm font-normal text-text-secondary ml-2">
+              ({pendingRequests.length})
+            </span>
+          </h2>
           <div className="space-y-3">
             {pendingRequests.map((req) => (
-              <div key={req.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-xl bg-white/5 gap-3 sm:gap-0">
+              <motion.div
+                key={req.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 gap-3"
+              >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-400 flex-shrink-0">
-                    {req.friend.firstName[0]}{req.friend.lastName[0]}
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-shrink-0 overflow-hidden">
+                    {req.friend.avatar ? (
+                      <img src={req.friend.avatar} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      `${req.friend.firstName[0]}${req.friend.lastName[0]}`
+                    )}
                   </div>
                   <div>
-                    <p className="text-white font-medium">
-                      <UserName userId={req.friend.id} firstName={req.friend.firstName} lastName={req.friend.lastName} />
+                    <p className="text-text font-medium">
+                      <UserName
+                        userId={req.friend.id}
+                        firstName={req.friend.firstName}
+                        lastName={req.friend.lastName}
+                      />
                     </p>
-                    <p className="text-sm text-gray-400">Souhaite devenir ami</p>
+                    <p className="text-xs text-text-secondary">Souhaite devenir ami</p>
                   </div>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
@@ -186,7 +300,7 @@ export default function FriendsPage() {
                     className="flex-1 sm:flex-initial"
                     disabled={acceptMutation.isPending}
                   >
-                    <UserCheck size={16} /> Accepter
+                    <UserCheck size={16} className="mr-1" /> Accepter
                   </Button>
                   <Button
                     onClick={() => rejectMutation.mutate(req.id)}
@@ -195,45 +309,92 @@ export default function FriendsPage() {
                     className="flex-1 sm:flex-initial"
                     disabled={rejectMutation.isPending}
                   >
-                    Refuser
+                    <UserX size={16} className="mr-1" /> Refuser
                   </Button>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Liste d'amis */}
-      <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-lg">
-        <h2 className="text-lg font-semibold text-white mb-4">Mes amis ({friends.length})</h2>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="card-premium p-6"
+      >
+        <h2 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
+          <Users size={20} className="text-primary" />
+          Mes amis
+          <span className="text-sm font-normal text-text-secondary ml-2">
+            ({friends.length})
+          </span>
+        </h2>
+
         {friendsLoading ? (
-          <Loader2 className="animate-spin text-brand-500 mx-auto" size={24} />
+          <div className="flex justify-center py-8">
+            <Loader2 className="animate-spin text-primary" size={32} />
+          </div>
         ) : friends.length === 0 ? (
-          <p className="text-gray-500 italic">Aucun ami pour le moment. Recherchez des membres et ajoutez-les.</p>
+          <div className="text-center py-8">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+              <Users size={28} className="text-primary opacity-70" />
+            </div>
+            <p className="text-text-secondary italic">
+              Aucun ami pour le moment.
+            </p>
+            <p className="text-text-secondary text-sm mt-1">
+              Utilisez la recherche pour ajouter vos premiers amis.
+            </p>
+          </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {friends.map((f) => (
-              <div key={f.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-xl bg-white/5 gap-3 sm:gap-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-400 flex-shrink-0">
-                    {f.friend.firstName[0]}{f.friend.lastName[0]}
+              <motion.div
+                key={f.id}
+                whileHover={{ scale: 1.01 }}
+                className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 gap-3"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-shrink-0 overflow-hidden">
+                    {f.friend.avatar ? (
+                      <img
+                        src={f.friend.avatar}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      `${f.friend.firstName[0]}${f.friend.lastName[0]}`
+                    )}
                   </div>
-                  <div>
-                    <p className="text-white font-medium">
-                      <UserName userId={f.friend.id} firstName={f.friend.firstName} lastName={f.friend.lastName} />
+                  <div className="min-w-0">
+                    <p className="text-text font-medium truncate">
+                      <UserName
+                        userId={f.friend.id}
+                        firstName={f.friend.firstName}
+                        lastName={f.friend.lastName}
+                      />
                     </p>
-                    <p className="text-sm text-gray-400">Ami depuis {new Date(f.createdAt).toLocaleDateString("fr-FR")}</p>
+                    <p className="text-xs text-text-secondary">
+                      Ami depuis {new Date(f.createdAt).toLocaleDateString("fr-FR")}
+                    </p>
                   </div>
                 </div>
-                <Button size="sm" variant="secondary" onClick={() => openChatWithFriend(f.friend.id)} className="w-full sm:w-auto">
-                  💬 Message
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => openChatWithFriend(f.friend.id)}
+                  className="flex-shrink-0"
+                >
+                  <MessageCircle size={16} className="mr-1" /> Message
                 </Button>
-              </div>
+              </motion.div>
             ))}
           </div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }

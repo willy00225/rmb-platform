@@ -2,18 +2,16 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { Upload, Loader2, ShieldAlert, ImagePlus, X, Check } from "lucide-react";
+import { Upload, Loader2, ShieldAlert, ImagePlus, X, Check, CheckCircle, FileText, Clock, XCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSession } from "next-auth/react";
 
-// Types de documents obligatoires
 const REQUIRED_TYPES = ["ID_CARD_FRONT", "ID_CARD_BACK", "SELFIE"] as const;
 
 export default function KycUploadPage() {
   const router = useRouter();
   const { data: session } = useSession();
 
-  // État pour chaque type de document
   const [files, setFiles] = useState<Record<string, File | null>>({
     ID_CARD_FRONT: null,
     ID_CARD_BACK: null,
@@ -30,7 +28,6 @@ export default function KycUploadPage() {
   const [existingDocs, setExistingDocs] = useState<{ type: string; status: string }[]>([]);
   const [loadingExisting, setLoadingExisting] = useState(true);
 
-  // Récupérer les tentatives restantes
   useEffect(() => {
     fetch("/api/kyc/attempts")
       .then(res => res.json())
@@ -38,7 +35,6 @@ export default function KycUploadPage() {
       .catch(() => setAttemptsLeft(null));
   }, []);
 
-  // Récupérer les documents déjà soumis
   useEffect(() => {
     fetch("/api/kyc")
       .then(res => res.json())
@@ -49,12 +45,10 @@ export default function KycUploadPage() {
       .catch(() => setLoadingExisting(false));
   }, []);
 
-  // Déterminer quels types de documents sont déjà soumis (et non rejetés définitivement)
   const getMissingTypes = () => {
     const submittedTypes = existingDocs
-      .filter(doc => doc.status !== "REJECTED") // On considère que REJECTED signifie qu'il faut en renvoyer un nouveau
+      .filter(doc => doc.status !== "REJECTED")
       .map(doc => doc.type);
-    // Gérer la compatibilité de l'ancien type "ID_CARD" (recto)
     if (submittedTypes.includes("ID_CARD") && !submittedTypes.includes("ID_CARD_FRONT")) {
       submittedTypes.push("ID_CARD_FRONT");
     }
@@ -99,7 +93,6 @@ export default function KycUploadPage() {
   };
 
   const handleSubmit = async () => {
-    // Vérifier que tous les champs obligatoires (manquants) sont remplis
     const hasAllRequired = missingTypes.every(type => files[type] !== null);
     if (!hasAllRequired) {
       toast.error("Veuillez fournir tous les documents manquants.");
@@ -108,7 +101,6 @@ export default function KycUploadPage() {
 
     setUploading(true);
     try {
-      // Envoyer chaque document un par un à l'API KYC
       for (const type of missingTypes) {
         const file = files[type];
         if (!file) continue;
@@ -145,18 +137,49 @@ export default function KycUploadPage() {
     }
   };
 
+  const completedCount = 3 - missingTypes.length;
+
   return (
-    <div className="max-w-md mx-auto space-y-8 animate-fadeInUp py-12">
-      <h1 className="text-3xl font-display font-bold text-text">
-        {missingTypes.length === 3 ? "Soumettre mes documents" : "Compléter mon dossier"}
-      </h1>
+    <div className="max-w-md mx-auto space-y-8 animate-fadeInUp py-8 px-4">
+      <div className="text-center">
+        <h1 className="text-3xl font-display font-bold text-text">
+          {missingTypes.length === 3 ? "Soumettre mes documents" : "Compléter mon dossier"}
+        </h1>
+        {kycLevel && (
+          <p className="text-sm text-text-secondary mt-2">
+            Niveau actuel : <span className="font-semibold text-primary">{kycLevel}</span>
+          </p>
+        )}
+      </div>
 
-      {kycLevel && (
-        <div className="text-sm text-text-secondary">
-          Niveau actuel : <span className="font-semibold text-primary">{kycLevel}</span>
+      {/* Barre de progression */}
+      <div className="card-premium p-4">
+        <div className="flex items-center justify-between mb-2">
+          {REQUIRED_TYPES.map((type, idx) => {
+            const isDone = !missingTypes.includes(type);
+            return (
+              <div key={type} className="flex flex-col items-center flex-1">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                  isDone ? "bg-primary text-white" : "bg-gray-200 dark:bg-white/10 text-text-secondary"
+                }`}>
+                  {isDone ? <Check size={14} /> : idx + 1}
+                </div>
+                <span className="text-[10px] mt-1 text-center text-text-secondary">
+                  {type === "ID_CARD_FRONT" ? "Recto" : type === "ID_CARD_BACK" ? "Verso" : "Selfie"}
+                </span>
+              </div>
+            );
+          })}
         </div>
-      )}
+        <div className="w-full h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+          <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${(completedCount / 3) * 100}%` }} />
+        </div>
+        <p className="text-xs text-text-secondary mt-2 text-center">
+          {completedCount}/3 document{completedCount > 1 ? "s" : ""} fourni{completedCount > 1 ? "s" : ""}
+        </p>
+      </div>
 
+      {/* Alerte de sécurité */}
       <div className="p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 flex items-start gap-3">
         <ShieldAlert size={20} className="text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
         <div>
@@ -171,6 +194,7 @@ export default function KycUploadPage() {
         </div>
       </div>
 
+      {/* Tentatives restantes */}
       {attemptsLeft !== null && (
         <div className={`p-3 rounded-xl text-sm ${
           attemptsLeft > 0
@@ -191,6 +215,38 @@ export default function KycUploadPage() {
         </div>
       ) : (
         <div className="card-premium p-6 space-y-6">
+          {/* Documents déjà soumis (avec statut) */}
+          {existingDocs.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-text flex items-center gap-2">
+                <FileText size={16} className="text-primary" /> Documents déjà soumis
+              </h3>
+              {existingDocs.map((doc, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10">
+                  <div className="flex items-center gap-2">
+                    {doc.status === "PENDING" ? (
+                      <Clock size={14} className="text-yellow-500" />
+                    ) : doc.status === "APPROVED" ? (
+                      <CheckCircle size={14} className="text-green-500" />
+                    ) : (
+                      <XCircle size={14} className="text-red-500" />
+                    )}
+                    <span className="text-sm text-text">{getLabel(doc.type)}</span>
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    doc.status === "PENDING"
+                      ? "bg-yellow-100 text-yellow-700"
+                      : doc.status === "APPROVED"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-700"
+                  }`}>
+                    {doc.status === "PENDING" ? "En attente" : doc.status === "APPROVED" ? "Validé" : "Rejeté"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {missingTypes.length === 0 ? (
             <div className="text-center py-4">
               <Check size={48} className="mx-auto text-green-500 mb-2" />
@@ -203,10 +259,13 @@ export default function KycUploadPage() {
             <>
               {missingTypes.map(type => (
                 <div key={type}>
-                  <p className="text-sm font-medium text-text mb-2">{getLabel(type)}</p>
+                  <p className="text-sm font-medium text-text mb-2 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-primary inline-block" />
+                    {getLabel(type)}
+                  </p>
                   {!previews[type] ? (
-                    <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-border dark:border-white/10 rounded-2xl cursor-pointer hover:border-primary transition bg-gray-50 dark:bg-white/5">
-                      <ImagePlus size={24} className="text-text-secondary mb-1" />
+                    <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-border dark:border-white/10 rounded-2xl cursor-pointer hover:border-primary transition bg-gray-50 dark:bg-white/5 group">
+                      <ImagePlus size={24} className="text-text-secondary mb-1 group-hover:text-primary transition" />
                       <span className="text-text-secondary text-xs">Cliquez pour choisir</span>
                       <input
                         type="file"
@@ -218,10 +277,10 @@ export default function KycUploadPage() {
                     </label>
                   ) : (
                     <div className="relative">
-                      <img src={previews[type]!} alt={getLabel(type)} className="w-full h-32 object-cover rounded-2xl" />
+                      <img src={previews[type]!} alt={getLabel(type)} className="w-full h-32 object-cover rounded-2xl border border-border" />
                       <button
                         onClick={() => removeFile(type)}
-                        className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1"
+                        className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition"
                       >
                         <X size={14} />
                       </button>

@@ -46,7 +46,16 @@ export default function FeedPage() {
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<string | null>(null);
   const [sharedPostId, setSharedPostId] = useState<string | null>(null);
-  const [feedTab, setFeedTab] = useState<"recent" | "for_you">("recent"); // ✅ onglet
+  const [feedTab, setFeedTab] = useState<"recent" | "for_you">("recent");
+  const [visibility, setVisibility] = useState<"PUBLIC" | "FRIENDS" | "ONLY_ME">("PUBLIC");
+
+  // 📄 Pages de l'utilisateur pour publier en tant que page
+  const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
+  const { data: myPages = [] } = useQuery({
+    queryKey: ["my-pages"],
+    queryFn: () => fetch("/api/pages").then((res) => res.json()),
+    enabled: !!session,
+  });
 
   // Requête paginée selon l'onglet
   const { data: posts = [], isLoading } = useQuery<Post[]>({
@@ -62,7 +71,14 @@ export default function FeedPage() {
       const res = await fetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: newPost, mediaUrl, mediaType, sharedPostId }),
+        body: JSON.stringify({
+          content: newPost,
+          mediaUrl,
+          mediaType,
+          visibility,
+          sharedPostId,
+          pageId: selectedPageId, // ✅ Publier en tant que page si sélectionné
+        }),
       });
       if (!res.ok) throw new Error("Erreur de publication");
       return res.json();
@@ -118,6 +134,37 @@ export default function FeedPage() {
 
       {/* Zone de publication */}
       <div className="rounded-[var(--radius-card)] bg-white dark:bg-surface border border-border dark:border-white/10 shadow-[var(--shadow-card)] p-6">
+        {/* Sélecteur de visibilité */}
+        <div className="flex items-center gap-2 mb-3">
+          <select
+            value={visibility}
+            onChange={(e) => setVisibility(e.target.value as any)}
+            className="px-3 py-1.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text text-xs"
+          >
+            <option value="PUBLIC">🌍 Public</option>
+            <option value="FRIENDS">👥 Amis</option>
+            <option value="ONLY_ME">🔒 Moi uniquement</option>
+          </select>
+        </div>
+
+        {/* ✅ Sélecteur de page */}
+        {myPages.length > 0 && (
+          <div className="mb-2">
+            <select
+              value={selectedPageId || ""}
+              onChange={(e) => setSelectedPageId(e.target.value || null)}
+              className="px-3 py-1.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text text-xs"
+            >
+              <option value="">📌 Sur mon profil</option>
+              {myPages.map((page: any) => (
+                <option key={page.id} value={page.id}>
+                  📄 {page.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <textarea
           value={newPost}
           onChange={(e) => setNewPost(e.target.value)}

@@ -1,10 +1,21 @@
 ﻿"use client";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/Button";
-import { Loader2, ToggleLeft, ToggleRight } from "lucide-react";
+import {
+  Loader2,
+  ToggleLeft,
+  ToggleRight,
+  Star,
+  Settings,
+  User,
+  Clock,
+  DollarSign,
+} from "lucide-react";
 import toast from "react-hot-toast";
 
-// Interfaces pour les données
+// Interfaces
 interface Config {
   id: string;
   label: string;
@@ -23,7 +34,7 @@ interface Feature {
 interface Subscriber {
   id: string;
   expiresAt: string;
-  user: { firstName: string; lastName: string };
+  user: { firstName: string; lastName: string; avatar?: string | null };
 }
 
 interface PremiumData {
@@ -34,16 +45,19 @@ interface PremiumData {
 
 export default function AdminPremiumPage() {
   const queryClient = useQueryClient();
+  const [editingPricing, setEditingPricing] = useState<string | null>(null);
+  const [newAmount, setNewAmount] = useState("");
 
-  const { data, isLoading } = useQuery<PremiumData>({
+  const { data, isLoading, isError } = useQuery<PremiumData>({
     queryKey: ["adminPremium"],
-    queryFn: () => fetch("/api/admin/pricing").then(res => res.json()),
+    queryFn: () => fetch("/api/admin/pricing").then((res) => res.json()),
   });
 
   const configs = data?.configs || [];
   const features = data?.features || [];
   const subscribers = data?.subscribers || [];
 
+  // Mutation pour activer/désactiver une fonctionnalité
   const toggleFeatureMutation = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
       const res = await fetch("/api/admin/features", {
@@ -62,11 +76,12 @@ export default function AdminPremiumPage() {
           features: old.features.map((f) => (f.id === id ? { ...f, active } : f)),
         };
       });
-      toast.success("Fonctionnalité mise à jour");
+      toast.success(active ? "Fonctionnalité activée" : "Fonctionnalité désactivée");
     },
     onError: () => toast.error("Erreur"),
   });
 
+  // Mutation pour modifier un prix
   const updatePricingMutation = useMutation({
     mutationFn: async ({ id, amount }: { id: string; amount: number }) => {
       const res = await fetch("/api/admin/pricing", {
@@ -86,6 +101,7 @@ export default function AdminPremiumPage() {
         };
       });
       toast.success("Tarif mis à jour");
+      setEditingPricing(null);
     },
     onError: () => toast.error("Erreur"),
   });
@@ -94,103 +110,201 @@ export default function AdminPremiumPage() {
     toggleFeatureMutation.mutate({ id, active });
   };
 
-  const handleUpdatePricing = (id: string, currentAmount: number) => {
-    const newAmount = prompt("Nouveau montant (FCFA) :", currentAmount.toString());
-    if (!newAmount) return;
-    const parsed = parseFloat(newAmount);
-    if (isNaN(parsed)) return toast.error("Montant invalide");
-    updatePricingMutation.mutate({ id, amount: parsed });
+  const handleEditPriceStart = (config: Config) => {
+    setEditingPricing(config.id);
+    setNewAmount(config.amount.toString());
   };
 
-  if (isLoading) return <Loader2 className="animate-spin text-primary mx-auto mt-10" size={32} />;
+  const handlePriceSave = (id: string) => {
+    const amount = parseFloat(newAmount);
+    if (isNaN(amount) || amount < 0) {
+      toast.error("Montant invalide");
+      return;
+    }
+    updatePricingMutation.mutate({ id, amount });
+  };
+
+  if (isLoading)
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <Loader2 className="animate-spin text-primary" size={40} />
+        <p className="text-text-secondary animate-pulse">Chargement des paramètres Premium...</p>
+      </div>
+    );
+
+  if (isError)
+    return (
+      <div className="text-center py-20 text-red-500">
+        Erreur de chargement. Veuillez réessayer.
+      </div>
+    );
 
   return (
-    <div className="space-y-8 animate-fadeInUp">
-      <h1 className="text-3xl font-display font-bold text-text dark:text-white">
-        Gestion Premium
-      </h1>
+    <div className="space-y-8 animate-fadeInUp pb-10">
+      {/* En-tête */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-display font-bold text-text flex items-center gap-2">
+            <Star size={28} className="text-amber-500" />
+            Gestion Premium
+          </h1>
+          <p className="text-text-secondary text-sm mt-1">
+            Gérez les tarifs, les fonctionnalités et les abonnés Premium
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {subscribers.length > 0 && (
+            <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl px-4 py-2 text-sm font-medium">
+              {subscribers.length} abonné{subscribers.length > 1 ? "s" : ""}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Tarifs */}
-      <div className="rounded-2xl bg-white dark:bg-white/5 border border-border dark:border-white/10 p-6">
-        <h2 className="text-xl font-semibold text-text dark:text-white mb-4">Tarifs</h2>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="card-premium p-6"
+      >
+        <h2 className="text-xl font-semibold text-text mb-4 flex items-center gap-2">
+          <DollarSign size={22} className="text-primary" />
+          Tarifs
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {configs.map((config) => (
             <div
               key={config.id}
-              className="flex justify-between items-center p-4 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10"
+              className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10"
             >
               <div>
-                <p className="font-medium text-text dark:text-white">{config.label}</p>
-                <p className="text-sm text-text-secondary dark:text-gray-400">
-                  {config.amount} FCFA
-                </p>
+                <p className="font-medium text-text">{config.label}</p>
+                {editingPricing === config.id ? (
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="number"
+                      value={newAmount}
+                      onChange={(e) => setNewAmount(e.target.value)}
+                      className="w-24 px-2 py-1 rounded-lg bg-white dark:bg-surface border border-border text-text text-sm"
+                      autoFocus
+                    />
+                    <span className="text-text-secondary text-sm">FCFA</span>
+                    <button
+                      onClick={() => handlePriceSave(config.id)}
+                      className="text-primary text-sm font-medium hover:underline"
+                      disabled={updatePricingMutation.isPending}
+                    >
+                      {updatePricingMutation.isPending ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        "Sauvegarder"
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setEditingPricing(null)}
+                      className="text-text-secondary text-sm hover:underline"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-text-secondary">
+                    {config.amount.toLocaleString()} FCFA
+                  </p>
+                )}
               </div>
               <Button
-                onClick={() => handleUpdatePricing(config.id, config.amount)}
+                onClick={() => handleEditPriceStart(config)}
                 variant="secondary"
                 size="sm"
+                disabled={editingPricing === config.id}
               >
                 Modifier
               </Button>
             </div>
           ))}
         </div>
-      </div>
+      </motion.div>
 
-      {/* Fonctionnalités activables */}
-      <div className="rounded-2xl bg-white dark:bg-white/5 border border-border dark:border-white/10 p-6">
-        <h2 className="text-xl font-semibold text-text dark:text-white mb-4">
+      {/* Fonctionnalités */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="card-premium p-6"
+      >
+        <h2 className="text-xl font-semibold text-text mb-4 flex items-center gap-2">
+          <Settings size={22} className="text-primary" />
           Fonctionnalités
         </h2>
         <div className="space-y-3">
           {features.map((feature) => (
             <div
               key={feature.id}
-              className="flex justify-between items-center p-4 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10"
+              className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10"
             >
-              <div>
-                <p className="font-medium text-text dark:text-white">{feature.label}</p>
-                <p className="text-sm text-text-secondary dark:text-gray-400">
-                  {feature.description}
-                </p>
+              <div className="flex-1 mr-4">
+                <p className="font-medium text-text">{feature.label}</p>
+                <p className="text-sm text-text-secondary">{feature.description}</p>
               </div>
-              <button onClick={() => handleToggleFeature(feature.id, feature.active)}>
-                {feature.active ? (
-                  <ToggleRight size={32} className="text-primary" />
-                ) : (
-                  <ToggleLeft size={32} className="text-text-secondary dark:text-gray-400" />
-                )}
+              <button
+                onClick={() => handleToggleFeature(feature.id, feature.active)}
+                className={`p-2 rounded-lg transition ${
+                  feature.active
+                    ? "text-primary hover:bg-primary/10"
+                    : "text-text-secondary hover:bg-gray-100 dark:hover:bg-white/10"
+                }`}
+                title={feature.active ? "Désactiver" : "Activer"}
+              >
+                {feature.active ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
               </button>
             </div>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* Abonnés */}
-      <div className="rounded-2xl bg-white dark:bg-white/5 border border-border dark:border-white/10 p-6">
-        <h2 className="text-xl font-semibold text-text dark:text-white mb-4">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="card-premium p-6"
+      >
+        <h2 className="text-xl font-semibold text-text mb-4 flex items-center gap-2">
+          <User size={22} className="text-primary" />
           Abonnés ({subscribers.length})
         </h2>
         {subscribers.length === 0 ? (
-          <p className="text-text-secondary italic">Aucun abonné pour le moment.</p>
+          <div className="text-center py-8 text-text-secondary">
+            <User size={32} className="mx-auto mb-2 opacity-40" />
+            <p className="italic">Aucun abonné pour le moment.</p>
+          </div>
         ) : (
-          <ul className="space-y-2">
+          <div className="space-y-2">
             {subscribers.map((sub) => (
-              <li
+              <div
                 key={sub.id}
-                className="flex justify-between p-2 rounded bg-gray-50 dark:bg-white/5"
+                className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10"
               >
-                <span className="text-text dark:text-white">
-                  {sub.user.firstName} {sub.user.lastName}
-                </span>
-                <span className="text-text-secondary dark:text-gray-400 text-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
+                    {sub.user.firstName[0]}
+                    {sub.user.lastName[0]}
+                  </div>
+                  <span className="text-text font-medium">
+                    {sub.user.firstName} {sub.user.lastName}
+                  </span>
+                </div>
+                <span className="text-text-secondary text-sm flex items-center gap-1">
+                  <Clock size={14} />
                   Expire le {new Date(sub.expiresAt).toLocaleDateString()}
                 </span>
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }

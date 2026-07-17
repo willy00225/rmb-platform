@@ -21,6 +21,7 @@ import {
   Settings,
   Sun,
   Moon,
+  Flag,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { UserName } from "@/components/ui/UserName";
@@ -35,6 +36,7 @@ const navItems = [
   { href: "/dashboard/live", label: "Lives", icon: Radio },
   { href: "/dashboard/radio", label: "Radio", icon: Radio },
   { href: "/dashboard/groups", label: "Groupes", icon: Users },
+  { href: "/dashboard/pages", label: "Pages", icon: Flag },
   { href: "/dashboard/marketplace", label: "Marketplace", icon: Store },
   { href: "/dashboard/orders", label: "Commandes", icon: Package },
   { href: "/dashboard/premium", label: "Premium", icon: Star },

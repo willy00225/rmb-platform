@@ -19,6 +19,7 @@ import {
   Film,
   Users,
   GroupIcon,
+  Flag,
 } from "lucide-react";
 import { UserName } from "@/components/ui/UserName";
 import { MediaViewer } from "@/components/ui/MediaViewer";
@@ -62,6 +63,11 @@ interface Post {
   sharesCount?: number;
   sharedPost?: Post | null;
   sharedBy?: { user: UserBrief }[];
+  page?: {
+    id: string;
+    name: string;
+    imageUrl?: string | null;
+  } | null; // ✅ infos de la page si publié par une page
 }
 
 const MAX_CONTENT_LENGTH = 280;
@@ -401,34 +407,67 @@ export function PostCard({
         </div>
       )}
 
-      {/* En-tête utilisateur */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-          {post.user.avatar ? (
-            <img src={post.user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
-          ) : (
-            <User size={18} />
-          )}
-        </div>
-        <div>
-          <div className="text-sm font-semibold text-text flex items-center gap-1">
-            <UserName
-              userId={post.userId}
-              firstName={post.user.firstName}
-              lastName={post.user.lastName}
-              isPremium={post.user.isPremium}
-            />
+      {/* En-tête utilisateur / Page */}
+      {post.page ? (
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary overflow-hidden">
+            {post.page.imageUrl ? (
+              <img src={post.page.imageUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <Flag size={18} />
+            )}
           </div>
-          <p className="text-xs text-text-secondary">
-            {new Date(post.createdAt).toLocaleDateString("fr-FR", {
-              day: "numeric",
-              month: "short",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </p>
+          <div>
+            <div className="text-sm font-semibold text-text flex items-center gap-1">
+              <span>{post.page.name}</span>
+            </div>
+            <p className="text-xs text-text-secondary">
+              Publié par{" "}
+              <UserName
+                userId={post.userId}
+                firstName={post.user.firstName}
+                lastName={post.user.lastName}
+                isPremium={post.user.isPremium}
+              />
+              {" · "}
+              {new Date(post.createdAt).toLocaleDateString("fr-FR", {
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </p>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+            {post.user.avatar ? (
+              <img src={post.user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+            ) : (
+              <User size={18} />
+            )}
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-text flex items-center gap-1">
+              <UserName
+                userId={post.userId}
+                firstName={post.user.firstName}
+                lastName={post.user.lastName}
+                isPremium={post.user.isPremium}
+              />
+            </div>
+            <p className="text-xs text-text-secondary">
+              {new Date(post.createdAt).toLocaleDateString("fr-FR", {
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Contenu éditable ou texte */}
       {isEditing ? (

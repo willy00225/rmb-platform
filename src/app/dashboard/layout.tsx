@@ -18,7 +18,7 @@ import {
   Menu, Bell, X, Newspaper, Users, User, LayoutDashboard,
   CalendarDays, Heart, Shield, Radio, Trophy, Settings,
   HelpCircle, Store, GitBranch, Package, Sun, Moon,
-  AlertTriangle, ShieldCheck
+  AlertTriangle, ShieldCheck, Flag
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -60,6 +60,7 @@ function MobileHeaderInline() {
     { href: "/dashboard/feed", label: "Fil d'actu", icon: Newspaper },
     { href: "/dashboard/friends", label: "Amis", icon: Users },
     { href: "/dashboard/groups", label: "Groupes", icon: Users },
+    { href: "/dashboard/pages", label: "Pages", icon: Flag },
     { href: "/dashboard/events", label: "Événements", icon: CalendarDays },
     { href: "/dashboard/live", label: "Lives", icon: Radio },
     { href: "/dashboard/radio", label: "Radio", icon: Radio },

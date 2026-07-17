@@ -7,80 +7,84 @@ datasource db {
 }
 
 model User {
-  id                   String                @id @default(uuid())
-  email                String?               @unique
-  phone                String?               @unique
-  passwordHash         String?
-  firstName            String
-  lastName             String
-  avatar               String?
-  coverImage           String?
-  bio                  String?
-  role                 Role                  @default(MEMBER)
-  kycLevel             KycLevel              @default(NONE)
-  kycValidatedById     String?
-  kycValidatedAt       DateTime?
-  level                Int                   @default(1)
-  xp                   Int                   @default(0)
-  totalDonated         Float                 @default(0)
-  googleId             String?               @unique
-  twoFactorEnabled     Boolean               @default(false)
-  twoFactorSecret      String?
-  lastLogin            DateTime?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  canton               String?
-  city                 String?
-  currentCity          String?
-  currentCountry       String                @default("CI")
-  currentVillage       String?
-  dateOfBirth          DateTime?
-  village              String?
-  fonction             String?
-  boosts               Int                   @default(0)
-  totalEarned          Float                 @default(0)
-  restrictedUntil      DateTime?
-  banReason            String?
-  resetToken           String?
-  resetTokenExpires    DateTime?
-  auditLogs            AuditLog[]
-  callsMade            Call[]                @relation("Caller")
-  callsReceived        Call[]                @relation("Receiver")
-  checkIns             CheckIn[]
-  comments             Comment[]
-  commentLikes         CommentLike[]
-  donations            Donation[]
-  events               Event[]               @relation("Organizer")
-  familyRelationsFrom  FamilyRelation[]      @relation("FromUser")
-  familyRelationsTo    FamilyRelation[]      @relation("ToUser")
-  friendshipsReceived  Friendship[]          @relation("Addressee")
-  friendshipsRequested Friendship[]          @relation("Requester")
-  groupsCreated        Group[]               @relation("GroupCreator")
-  groupMembers         GroupMember[]
-  groupPosts           GroupPost[]
-  kycDocuments         KycDocument[]
-  hostedLives          Live[]                @relation("LiveHost")
-  manualDonations      ManualDonation[]
-  marketplaceProducts  MarketplaceProduct[]
-  purchases            MarketplacePurchase[] @relation("purchaseBuyer")
-  sales                MarketplacePurchase[] @relation("purchaseSeller")
-  receivedMessages     Message[]             @relation("Receiver")
-  sentMessages         Message[]             @relation("Sender")
-  notifications        Notification[]
-  participations       Participation[]
-  podcasts             Podcast[]
-  posts                Post[]
-  postLikes            PostLike[]
-  reports              Report[]              @relation("Reporter")
-  stories              Story[]
-  storyLikes           StoryLike[]
-  storyComments        StoryComment[]
-  storyViews           StoryView[]
-  subscription         Subscription?
-  transactions         Transaction[]
-  kycValidatedBy       User?                 @relation("KycValidator", fields: [kycValidatedById], references: [id])
-  validatedKycs        User[]                @relation("KycValidator")
-  badges               UserBadge[]
+  id                       String                @id @default(uuid())
+  email                    String?               @unique
+  phone                    String?               @unique
+  passwordHash             String?
+  firstName                String
+  lastName                 String
+  avatar                   String?
+  coverImage               String?
+  bio                      String?
+  role                     Role                  @default(MEMBER)
+  kycLevel                 KycLevel              @default(NONE)
+  kycValidatedById         String?
+  kycValidatedAt           DateTime?
+  level                    Int                   @default(1)
+  xp                       Int                   @default(0)
+  totalDonated             Float                 @default(0)
+  googleId                 String?               @unique
+  twoFactorEnabled         Boolean               @default(false)
+  twoFactorSecret          String?
+  lastLogin                DateTime?
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  canton                   String?
+  city                     String?
+  currentCity              String?
+  currentCountry           String                @default("CI")
+  currentVillage           String?
+  dateOfBirth              DateTime?
+  village                  String?
+  fonction                 String?
+  notificationPreferences  Json?                 // ✅ préférences de notification flexibles
+  boosts                   Int                   @default(0)
+  totalEarned              Float                 @default(0)
+  restrictedUntil          DateTime?
+  banReason                String?
+  resetToken               String?
+  resetTokenExpires        DateTime?
+  auditLogs                AuditLog[]
+  callsMade                Call[]                @relation("Caller")
+  callsReceived            Call[]                @relation("Receiver")
+  checkIns                 CheckIn[]
+  comments                 Comment[]
+  commentLikes             CommentLike[]
+  donations                Donation[]
+  events                   Event[]               @relation("Organizer")
+  familyRelationsFrom      FamilyRelation[]      @relation("FromUser")
+  familyRelationsTo        FamilyRelation[]      @relation("ToUser")
+  friendshipsReceived      Friendship[]          @relation("Addressee")
+  friendshipsRequested     Friendship[]          @relation("Requester")
+  groupsCreated            Group[]               @relation("GroupCreator")
+  groupMembers             GroupMember[]
+  groupPosts               GroupPost[]
+  kycDocuments             KycDocument[]
+  hostedLives              Live[]                @relation("LiveHost")
+  manualDonations          ManualDonation[]
+  marketplaceProducts      MarketplaceProduct[]
+  pages                    Page[]                @relation("PageCreator")
+  pageMemberships          PageMember[]
+  pageFollows              PageFollow[]
+  purchases                MarketplacePurchase[] @relation("purchaseBuyer")
+  sales                    MarketplacePurchase[] @relation("purchaseSeller")
+  receivedMessages         Message[]             @relation("Receiver")
+  sentMessages             Message[]             @relation("Sender")
+  notifications            Notification[]
+  participations           Participation[]
+  podcasts                 Podcast[]
+  posts                    Post[]
+  postLikes                PostLike[]
+  reports                  Report[]              @relation("Reporter")
+  stories                  Story[]
+  storyLikes               StoryLike[]
+  storyComments            StoryComment[]
+  storyViews               StoryView[]
+  subscription             Subscription?
+  transactions             Transaction[]
+  kycValidatedBy           User?                 @relation("KycValidator", fields: [kycValidatedById], references: [id])
+  validatedKycs            User[]                @relation("KycValidator")
+  badges                   UserBadge[]
 
   @@index([firstName, lastName], map: "idx_user_name")
 }
@@ -231,23 +235,70 @@ model ManualDonation {
   user        User                 @relation(fields: [userId], references: [id])
 }
 
+model Page {
+  id             String        @id @default(uuid())
+  name           String
+  description    String?
+  imageUrl       String?
+  coverImage     String?
+  whatsappNumber String?
+  website        String?
+  location       String?
+  category       String?
+  verified       Boolean       @default(false)
+  suspended      Boolean       @default(false)
+  creatorId      String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  creator        User          @relation("PageCreator", fields: [creatorId], references: [id])
+  posts          Post[]
+  members        PageMember[]
+  followers      PageFollow[]
+}
+
+model PageMember {
+  id       String   @id @default(uuid())
+  userId   String
+  pageId   String
+  role     PageRole @default(MODERATOR)
+  joinedAt DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id])
+  page     Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pageId])
+}
+
+model PageFollow {
+  id        String   @id @default(uuid())
+  userId    String
+  pageId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pageId])
+}
+
 model Post {
-  id           String        @id @default(uuid())
+  id           String          @id @default(uuid())
   userId       String
   content      String
   mediaUrl     String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
   mediaType    String?
   sharedPostId String?
-  visible      Boolean       @default(true)
-  isBoosted    Boolean       @default(false)
+  visible      Boolean         @default(true)
+  visibility   PostVisibility  @default(PUBLIC)
+  isBoosted    Boolean         @default(false)
   boostedUntil DateTime?
   boostType    String?
+  pageId       String?
+  page         Page?           @relation(fields: [pageId], references: [id])
   comments     Comment[]
-  sharedPost   Post?         @relation("PostShares", fields: [sharedPostId], references: [id])
-  sharedBy     Post[]        @relation("PostShares")
-  user         User          @relation(fields: [userId], references: [id])
+  sharedPost   Post?           @relation("PostShares", fields: [sharedPostId], references: [id])
+  sharedBy     Post[]          @relation("PostShares")
+  user         User            @relation(fields: [userId], references: [id])
   likes        PostLike[]
   reports      Report[]
   transactions Transaction[]
@@ -261,8 +312,8 @@ model Comment {
   userId    String
   content   String
   parentId  String?
-  mediaUrl  String?   // ✅ URL du média
-  mediaType String?   // ✅ "image" ou "video"
+  mediaUrl  String?
+  mediaType String?
   createdAt DateTime @default(now())
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id])
@@ -466,7 +517,7 @@ model Story {
   userId    String
   mediaUrl  String
   mediaType String        @default("image")
-  caption   String?       // ✅ légende optionnelle
+  caption   String?
   expiresAt DateTime
   createdAt DateTime      @default(now())
   user      User          @relation(fields: [userId], references: [id])
@@ -565,6 +616,18 @@ model Setting {
 model SiteConfig {
   key   String @id
   value String
+}
+
+enum PageRole {
+  ADMIN
+  EDITOR
+  MODERATOR
+}
+
+enum PostVisibility {
+  PUBLIC
+  FRIENDS
+  ONLY_ME
 }
 
 enum Role {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { sendPushNotification } from "@/lib/onesignal";
+import { notifyUser } from "@/lib/notify";
 
 export async function POST(
   req: Request,
@@ -53,11 +53,12 @@ export async function POST(
         where: { id: session.user.id },
         select: { firstName: true },
       });
-      await sendPushNotification({
-        headings: { fr: "J’aime sur un commentaire ❤️" },
-        contents: { fr: `${liker?.firstName || "Quelqu’un"} a aimé votre commentaire.` },
-        includeExternalUserIds: [comment.userId],
-      });
+      await notifyUser(
+        comment.userId,
+        "post_liked",
+        "J’aime sur un commentaire ❤️",
+        `${liker?.firstName || "Quelqu’un"} a aimé votre commentaire.`
+      );
     }
 
     return NextResponse.json({ liked: true });

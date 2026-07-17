@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { sendPushNotification } from "@/lib/onesignal";
+import { notifyUser } from "@/lib/notify";
 import { updateChallenges } from "@/lib/challenges";
 import { checkAndAwardBadges } from "@/lib/badges";
 import { addXp } from "@/lib/xp";
@@ -54,39 +54,39 @@ export async function POST(
   await checkAndAwardBadges(session.user.id);
   await addXp(session.user.id, 5);
 
-  // Notification à l'auteur du post (sauf si c'est lui-même)
+  const commenter = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { firstName: true },
+  });
+  const commenterName = commenter?.firstName || "Quelqu’un";
+
+  // Notification à l'auteur du post
   const post = await prisma.post.findUnique({
     where: { id: postId },
     select: { userId: true },
   });
   if (post && post.userId !== session.user.id) {
-    const commenter = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { firstName: true },
-    });
-    await sendPushNotification({
-      headings: { fr: "Nouveau commentaire 💬" },
-      contents: { fr: `${commenter?.firstName || "Quelqu’un"} a commenté votre publication.` },
-      includeExternalUserIds: [post.userId],
-    });
+    await notifyUser(
+      post.userId,
+      "new_comment",
+      "Nouveau commentaire 💬",
+      `${commenterName} a commenté votre publication.`
+    );
   }
 
-  // Notification au propriétaire du commentaire parent (si réponse)
+  // Notification au propriétaire du commentaire parent
   if (parentId) {
     const parentComment = await prisma.comment.findUnique({
       where: { id: parentId },
       select: { userId: true },
     });
     if (parentComment && parentComment.userId !== session.user.id) {
-      const replier = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { firstName: true },
-      });
-      await sendPushNotification({
-        headings: { fr: "Nouvelle réponse 💬" },
-        contents: { fr: `${replier?.firstName || "Quelqu’un"} a répondu à votre commentaire.` },
-        includeExternalUserIds: [parentComment.userId],
-      });
+      await notifyUser(
+        parentComment.userId,
+        "new_comment",
+        "Nouvelle réponse 💬",
+        `${commenterName} a répondu à votre commentaire.`
+      );
     }
   }
 

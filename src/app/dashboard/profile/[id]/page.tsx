@@ -1,158 +1,190 @@
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
-import { notFound, redirect } from "next/navigation";
-import { Button } from "@/components/ui/Button";
-import { UserPlus, ArrowLeft, UserCheck, UserX } from "lucide-react";
+// src/app/dashboard/profile/[id]/PublicProfileClient.tsx
+"use client";
+import { useState } from "react";
+import { Heart, MessageCircle, ThumbsUp, Users, MapPin, TrendingUp, CalendarDays } from "lucide-react";
 import Link from "next/link";
-import { MessageButton } from "./MessageButton"; // ✅ composant client pour le chat
+import { PostCard } from "@/components/community/PostCard";
 
-export const dynamic = 'force-dynamic';
+type Badge = {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+};
 
-export default async function PublicProfilePage({
-  params,
+type Post = any; // Utilisez le même type que dans PostCard
+
+export function PublicProfileClient({
+  userId,
+  bio,
+  level,
+  xp,
+  totalDonated,
+  posts,
+  badges,
+  friendsCount,
+  commonFriends,
+  commonFriendsCount,
+  recentPhotos,
+  postCount,
+  commentCount,
+  donationCount,
+  currentUserId,
 }: {
-  params: Promise<{ id: string }>;
+  userId: string;
+  bio: string | null;
+  level: number;
+  xp: number;
+  totalDonated: number;
+  posts: Post[];
+  badges: Badge[];
+  friendsCount: number;
+  commonFriends: { id: string; firstName: string; lastName: string; avatar: string | null }[];
+  commonFriendsCount: number;
+  recentPhotos: { id: string; url: string }[];
+  postCount: number;
+  commentCount: number;
+  donationCount: number;
+  currentUserId: string;
 }) {
-  const session = await auth();
-  if (!session?.user) redirect("/auth/login");
-
-  const { id } = await params;
-
-  // Rediriger si c'est son propre profil
-  if (id === session.user.id) {
-    redirect("/dashboard/profile");
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      avatar: true,
-      bio: true,
-      email: true,
-      level: true,
-      xp: true,
-      createdAt: true,
-      totalDonated: true,
-      _count: { select: { posts: true, friendshipsRequested: { where: { status: "ACCEPTED" } }, friendshipsReceived: { where: { status: "ACCEPTED" } } } },
-    },
-  });
-
-  if (!user) notFound();
-
-  // Calcul du nombre d'amis
-  const friendsCount = user._count.friendshipsRequested + user._count.friendshipsReceived;
-
-  // Vérifier l'état de l'amitié
-  const friendship = await prisma.friendship.findFirst({
-    where: {
-      OR: [
-        { requesterId: session.user.id, addresseeId: id },
-        { requesterId: id, addresseeId: session.user.id },
-      ],
-    },
-  });
-
-  const isPending = friendship?.status === "PENDING";
-  const isAccepted = friendship?.status === "ACCEPTED";
-  const isRequester = friendship?.requesterId === session.user.id;
-
-  // Server Actions
-  async function addFriendAction() {
-    "use server";
-    const session = await auth();
-    if (!session?.user) redirect("/auth/login");
-
-    await prisma.friendship.create({
-      data: {
-        requesterId: session.user.id,
-        addresseeId: id,
-        status: "PENDING",
-      },
-    });
-    redirect(`/dashboard/profile/${id}`);
-  }
-
-  async function cancelRequestAction() {
-    "use server";
-    const session = await auth();
-    if (!session?.user) redirect("/auth/login");
-
-    const friendship = await prisma.friendship.findFirst({
-      where: {
-        OR: [
-          { requesterId: session.user.id, addresseeId: id },
-          { requesterId: id, addresseeId: session.user.id },
-        ],
-      },
-    });
-
-    if (friendship) {
-      await prisma.friendship.delete({ where: { id: friendship.id } });
-    }
-    redirect(`/dashboard/profile/${id}`);
-  }
+  const [activeTab, setActiveTab] = useState<"posts" | "photos" | "common">("posts");
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 animate-fadeInUp py-12">
-      <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-text transition">
-        <ArrowLeft size={16} />
-        Retour
-      </Link>
+    <div className="space-y-6">
+      {/* Statistiques */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="card-premium p-4 text-center">
+          <Users size={20} className="text-primary mx-auto mb-1" />
+          <p className="text-2xl font-bold text-text">{friendsCount}</p>
+          <p className="text-xs text-text-secondary">Amis</p>
+        </div>
+        <div className="card-premium p-4 text-center">
+          <MessageCircle size={20} className="text-primary mx-auto mb-1" />
+          <p className="text-2xl font-bold text-text">{postCount}</p>
+          <p className="text-xs text-text-secondary">Publications</p>
+        </div>
+        <div className="card-premium p-4 text-center">
+          <ThumbsUp size={20} className="text-primary mx-auto mb-1" />
+          <p className="text-2xl font-bold text-text">{commentCount}</p>
+          <p className="text-xs text-text-secondary">Commentaires</p>
+        </div>
+        <div className="card-premium p-4 text-center">
+          <Heart size={20} className="text-secondary mx-auto mb-1" />
+          <p className="text-2xl font-bold text-text">{totalDonated.toLocaleString()} F</p>
+          <p className="text-xs text-text-secondary">Dons</p>
+        </div>
+      </div>
 
-      <div className="card-premium p-8 text-center">
-        <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center text-4xl font-bold text-primary mx-auto">
-          {user.avatar ? (
-            <img src={user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+      {/* Onglets */}
+      <div className="flex border-b border-border">
+        {(["posts", "photos", "common"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 ${
+              activeTab === tab ? "border-primary text-primary" : "border-transparent text-text-secondary hover:text-text"
+            }`}
+          >
+            {tab === "posts" ? "Publications" : tab === "photos" ? "Photos" : "Amis en commun"}
+          </button>
+        ))}
+      </div>
+
+      {/* Contenu */}
+      {activeTab === "posts" && (
+        <div className="space-y-6">
+          {posts.length === 0 ? (
+            <p className="text-text-secondary italic text-center py-8">Aucune publication.</p>
           ) : (
-            `${user.firstName[0]}${user.lastName[0]}`
+            posts.map((post) => (
+              <PostCard key={post.id} post={post} currentUserId={currentUserId} />
+            ))
           )}
         </div>
-        <h1 className="text-3xl font-display font-bold text-text dark:text-white mt-4">
-          {user.firstName} {user.lastName}
-        </h1>
-        {user.bio && <p className="text-text-secondary mt-2">{user.bio}</p>}
-        <p className="text-sm text-text-secondary mt-1">
-          Niveau {user.level} · {user.xp} XP · Membre depuis {new Date(user.createdAt).getFullYear()}
-        </p>
-        <div className="flex justify-center gap-4 mt-4 text-sm text-text-secondary">
-          <span>{user._count.posts} publications</span>
-          <span>{friendsCount} amis</span>
-          <span>{user.totalDonated.toLocaleString()} FCFA donnés</span>
-        </div>
+      )}
 
-        {/* Actions */}
-        <div className="flex justify-center gap-4 mt-6">
-          {isAccepted ? (
-            <>
-              <MessageButton targetUserId={id} />
-              <Button variant="secondary" size="lg" disabled>
-                <UserCheck size={18} /> Amis
-              </Button>
-            </>
-          ) : isPending && isRequester ? (
-            <form action={cancelRequestAction}>
-              <Button variant="secondary" size="lg" type="submit">
-                <UserX size={18} /> Annuler l'invitation
-              </Button>
-            </form>
-          ) : isPending && !isRequester ? (
-            <Button variant="secondary" size="lg" disabled>
-              <UserPlus size={18} /> Invitation reçue
-            </Button>
+      {activeTab === "photos" && (
+        <div>
+          {recentPhotos.length === 0 ? (
+            <p className="text-text-secondary italic text-center py-8">Aucune photo.</p>
           ) : (
-            <>
-              <form action={addFriendAction}>
-                <Button variant="primary" size="lg" type="submit">
-                  <UserPlus size={18} /> Ajouter comme ami
-                </Button>
-              </form>
-              <MessageButton targetUserId={id} />
-            </>
+            <div className="grid grid-cols-3 gap-2">
+              {recentPhotos.map((photo) => (
+                <div key={photo.id} className="aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-white/5">
+                  <img src={photo.url} alt="" className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
           )}
         </div>
+      )}
+
+      {activeTab === "common" && (
+        <div>
+          {commonFriends.length === 0 ? (
+            <p className="text-text-secondary italic text-center py-8">Aucun ami en commun.</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {commonFriends.map((friend) => (
+                <Link
+                  key={friend.id}
+                  href={`/dashboard/profile/${friend.id}`}
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition"
+                >
+                  <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-white/10 overflow-hidden">
+                    {friend.avatar ? (
+                      <img src={friend.avatar} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-text-secondary">
+                        <Users size={16} />
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-sm font-medium text-text truncate">
+                    {friend.firstName} {friend.lastName}
+                  </span>
+                </Link>
+              ))}
+              {commonFriendsCount > commonFriends.length && (
+                <p className="text-xs text-text-secondary text-center col-span-full mt-2">
+                  et {commonFriendsCount - commonFriends.length} autres amis en commun
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Informations supplémentaires (toujours visibles) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {bio && (
+          <div className="card-premium p-4">
+            <h3 className="font-semibold text-text mb-1">Bio</h3>
+            <p className="text-text-secondary text-sm">{bio}</p>
+          </div>
+        )}
+        <div className="card-premium p-4">
+          <h3 className="font-semibold text-text mb-2">Détails</h3>
+          <ul className="space-y-2 text-sm text-text-secondary">
+            <li className="flex items-center gap-2"><TrendingUp size={14} /> Niveau {level} · {xp} XP</li>
+          </ul>
+        </div>
+        {badges.length > 0 && (
+          <div className="card-premium p-4 md:col-span-2">
+            <h3 className="font-semibold text-text mb-2">Badges</h3>
+            <div className="flex flex-wrap gap-4">
+              {badges.map((badge) => (
+                <div key={badge.id} className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
+                  <span className="text-2xl">{badge.icon}</span>
+                  <div>
+                    <p className="text-text text-sm font-medium">{badge.name}</p>
+                    <p className="text-text-secondary text-xs">{badge.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,8 +1,19 @@
 ﻿"use client";
-import { useEffect, useState, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Loader2, ChevronLeft, Users } from "lucide-react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
+import {
+  MessageCircle,
+  X,
+  Loader2,
+  ChevronLeft,
+  Users,
+  Search,
+  Plus,
+  Maximize2,
+  Minimize2,
+} from "lucide-react";
 import { ChatView } from "@/components/chat/ChatView";
+import { CreateGroupModal } from "@/components/chat/CreateGroupModal";
 import { Session } from "next-auth";
 import { StreamChat } from "stream-chat";
 import type { Event, ChannelMemberResponse, MessageResponse } from "stream-chat";
@@ -17,10 +28,26 @@ interface ChannelPreview {
   updatedAt?: Date;
   friendId?: string;
   isGeneral?: boolean;
+  avatarUrl?: string;
+  unread?: number;
 }
 
 interface MessageEvent extends Event {
   message?: MessageResponse & { user?: { id: string; name?: string }; text?: string };
+}
+
+/* ------------------------------ helpers ----------------------------- */
+const AVATAR_COLORS = [
+  "#6C5CE7", "#00B894", "#0984E3", "#FDCB6E", "#E17055",
+  "#00CEC9", "#A29BFE", "#55E6C1", "#FDA7DF", "#636E72",
+];
+
+function stringToColor(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
 /* ------------------------------ hooks maison ----------------------------- */
@@ -84,7 +111,6 @@ function usePrivateChannels(chatClient: StreamChat | null, userId: string, open:
     const load = async () => {
       setLoadingChannels(true);
       try {
-        // ✅ Filtre simple : tous les canaux de l'utilisateur
         const filter = { members: { $in: [userId] } };
         const sort = { last_message_at: -1 as const };
         const result = await chatClient.queryChannels(filter, sort, {
@@ -92,7 +118,6 @@ function usePrivateChannels(chatClient: StreamChat | null, userId: string, open:
           state: true,
         });
 
-        // ✅ On exclut le canal "general" côté client
         const filtered = result.filter((channel) => channel.id !== "general");
 
         const previews: ChannelPreview[] = filtered
@@ -101,8 +126,9 @@ function usePrivateChannels(chatClient: StreamChat | null, userId: string, open:
               (m: ChannelMemberResponse) => m.user_id !== userId
             );
             const friendId = members[0]?.user_id;
+            const friendUser = members[0]?.user;
             const name = friendId
-              ? (members[0]?.user?.name as string) || "Ami"
+              ? friendUser?.name || "Ami"
               : channel.id || "Sans nom";
             const lastMessage = channel.state.messages?.[channel.state.messages.length - 1];
             const updatedAt = lastMessage?.created_at
@@ -116,6 +142,8 @@ function usePrivateChannels(chatClient: StreamChat | null, userId: string, open:
               updatedAt,
               friendId,
               isGeneral: false,
+              avatarUrl: friendUser?.image || undefined,
+              unread: channel.countUnread(),
             };
           })
           .filter((ch) => ch.id);
@@ -143,6 +171,15 @@ function usePrivateChannels(chatClient: StreamChat | null, userId: string, open:
 
 function useUnreadMessages(chatClient: StreamChat | null, userId: string, open: boolean) {
   const [unreadCount, setUnreadCount] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Initialisation du son (création paresseuse)
+    if (!audioRef.current && typeof Audio !== "undefined") {
+      audioRef.current = new Audio("/sounds/new-message.mp3");
+      audioRef.current.volume = 0.3;
+    }
+  }, []);
 
   useEffect(() => {
     if (!chatClient) return;
@@ -150,6 +187,10 @@ function useUnreadMessages(chatClient: StreamChat | null, userId: string, open: 
       const msg = event as MessageEvent;
       if (!open && msg.message?.user?.id !== userId) {
         setUnreadCount((prev) => prev + 1);
+        // Jouer un son discret
+        if (audioRef.current) {
+          audioRef.current.play().catch(() => {});
+        }
       }
     };
     chatClient.on("message.new", handler);
@@ -170,6 +211,14 @@ export function FloatingChat({ session }: { session: Session }) {
   const { open, openChat, closeChat, friendId } = useChat();
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [activeFriendId, setActiveFriendId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showGroupModal, setShowGroupModal] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Swipe to dismiss (mobile)
+  const dragY = useMotionValue(0);
+  const opacity = useTransform(dragY, [0, 200], [1, 0]);
+  const scale = useTransform(dragY, [0, 200], [1, 0.9]);
 
   const { chatClient, connecting } = useStreamConnection(session);
   const unreadCount = useUnreadMessages(chatClient, session.user.id, open);
@@ -179,7 +228,26 @@ export function FloatingChat({ session }: { session: Session }) {
     open
   );
 
-  // Quand le chat s'ouvre avec un friendId (depuis un profil ami), ouvrir la conversation
+  // Raccourcis clavier
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+K pour ouvrir/fermer
+      if (e.ctrlKey && e.key === "k") {
+        e.preventDefault();
+        if (open) closeChat();
+        else openChat();
+      }
+      // Escape pour revenir à la liste
+      if (e.key === "Escape" && open && activeChannelId) {
+        setActiveChannelId(null);
+        setActiveFriendId(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, activeChannelId, openChat, closeChat]);
+
+  // Ouvrir automatiquement la conversation avec un ami si friendId est fourni
   useEffect(() => {
     if (!open || !chatClient || !friendId) return;
 
@@ -209,6 +277,10 @@ export function FloatingChat({ session }: { session: Session }) {
     ...privateChannels,
   ];
 
+  const filteredConversations = conversations.filter((conv) =>
+    conv.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const openConversation = useCallback(
     (channelId: string, friendId?: string) => {
       setActiveChannelId(channelId);
@@ -231,43 +303,77 @@ export function FloatingChat({ session }: { session: Session }) {
 
   return (
     <>
-      <button
+      {/* Bouton flottant */}
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
         onClick={() => (open ? closeChat() : openChat())}
         className="fixed bottom-20 md:bottom-6 right-6 z-[100] w-14 h-14 rounded-full bg-primary text-white shadow-[0_4px_20px_rgba(0,90,58,0.5)] hover:bg-primary-hover transition-all flex items-center justify-center border-2 border-white/50"
+        aria-label={open ? "Fermer le chat" : "Ouvrir le chat"}
       >
         {open ? <X size={24} /> : <MessageCircle size={24} />}
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-secondary text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold"
+          >
             {unreadCount > 9 ? "9+" : unreadCount}
-          </span>
+          </motion.span>
         )}
-      </button>
+      </motion.button>
 
+      {/* Fenêtre de chat */}
       <AnimatePresence>
         {open && (
           <motion.div
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 200 }}
+            dragElastic={0.2}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 100) {
+                closeChat();
+              }
+            }}
+            style={{ y: dragY, opacity, scale }}
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: "spring", damping: 25 }}
-            className="fixed bottom-36 md:bottom-24 right-6 z-50 w-80 h-96 rounded-[var(--radius-card)] bg-white dark:bg-surface border border-border shadow-2xl flex flex-col overflow-hidden"
+            className={`fixed bottom-36 md:bottom-24 right-6 z-50 rounded-2xl bg-white dark:bg-surface border border-border shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
+              isExpanded
+                ? "w-[90vw] md:w-[600px] h-[85vh]"
+                : "w-[340px] md:w-80 h-[500px] max-h-[70vh]"
+            }`}
+            role="dialog"
+            aria-label="Messagerie"
           >
             {connecting || !chatClient ? (
               <div className="flex-1 flex items-center justify-center">
                 <Loader2 className="animate-spin text-primary" size={24} />
               </div>
             ) : activeChannelId ? (
+              /* Vue conversation active */
               <div className="flex-1 flex flex-col min-h-0">
                 <div className="flex items-center gap-2 p-3 border-b border-border dark:border-white/10">
                   <button
                     onClick={backToList}
                     className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition"
+                    aria-label="Retour à la liste"
                   >
                     <ChevronLeft size={18} className="text-text-secondary" />
                   </button>
-                  <h3 className="text-sm font-semibold text-text dark:text-white">
+                  <h3 className="text-sm font-semibold text-text dark:text-white flex-1">
                     {activeChannelId === "general" ? "Général" : "Conversation privée"}
                   </h3>
+                  {/* Bouton plein écran (desktop) */}
+                  <button
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition hidden md:block"
+                    aria-label={isExpanded ? "Réduire" : "Agrandir"}
+                  >
+                    {isExpanded ? <Minimize2 size={16} className="text-text-secondary" /> : <Maximize2 size={16} className="text-text-secondary" />}
+                  </button>
                 </div>
                 <div className="flex-1 min-h-0">
                   <ChatView
@@ -279,57 +385,115 @@ export function FloatingChat({ session }: { session: Session }) {
                 </div>
               </div>
             ) : (
+              /* Liste des conversations */
               <div className="flex-1 flex flex-col min-h-0">
-                <div className="p-3 border-b border-border dark:border-white/10">
+                <div className="p-3 border-b border-border dark:border-white/10 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-text dark:text-white">Messages</h3>
+                  <motion.button
+                    whileTap={{ rotate: 90 }}
+                    onClick={() => setShowGroupModal(true)}
+                    className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition"
+                    title="Nouveau groupe"
+                    aria-label="Créer un nouveau groupe"
+                  >
+                    <Plus size={18} className="text-text-secondary" />
+                  </motion.button>
                 </div>
-                <div className="flex-1 overflow-y-auto">
+                <div className="px-3 pb-2">
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Rechercher une conversation..."
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-border dark:border-white/10 text-text text-xs placeholder-text-secondary focus:outline-none focus:border-primary transition"
+                      aria-label="Rechercher une conversation"
+                    />
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto" role="listbox" aria-label="Liste des conversations">
                   {loadingChannels ? (
                     <div className="flex items-center justify-center h-full">
                       <Loader2 className="animate-spin text-primary" size={20} />
                     </div>
-                  ) : conversations.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-text-secondary text-sm">
-                      Aucune conversation
+                  ) : filteredConversations.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-text-secondary text-sm px-4 text-center">
+                      <MessageCircle size={24} className="mb-2 opacity-50" />
+                      {searchTerm ? "Aucune conversation trouvée." : "Aucune conversation pour le moment."}
                     </div>
                   ) : (
-                    conversations.map((conv) => (
-                      <button
+                    filteredConversations.map((conv) => (
+                      <motion.button
                         key={conv.id}
+                        whileTap={{ scale: 0.98 }}
                         onClick={() => openConversation(conv.id, conv.friendId)}
                         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/5 transition text-left"
+                        role="option"
+                        aria-selected={false}
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            openConversation(conv.id, conv.friendId);
+                          }
+                        }}
                       >
-                        <div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold flex-shrink-0 ${
-                            conv.isGeneral
-                              ? "bg-blue-100 text-blue-600"
-                              : "bg-primary/10 text-primary"
-                          }`}
-                        >
-                          {conv.isGeneral ? <Users size={18} /> : conv.name[0]}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-text dark:text-white truncate">
-                            {conv.name}
-                          </p>
-                          {conv.lastMessage && (
-                            <p className="text-xs text-text-secondary truncate">
-                              {conv.lastMessage}
-                            </p>
+                        <div className="relative">
+                          <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                            style={{
+                              backgroundColor: conv.isGeneral
+                                ? "rgba(59,130,246,0.1)"
+                                : conv.avatarUrl
+                                ? "transparent"
+                                : stringToColor(conv.name),
+                              color: conv.isGeneral
+                                ? "#3B82F6"
+                                : conv.avatarUrl
+                                ? "transparent"
+                                : "#FFFFFF",
+                            }}
+                          >
+                            {conv.isGeneral ? (
+                              <Users size={18} />
+                            ) : conv.avatarUrl ? (
+                              <img
+                                src={conv.avatarUrl}
+                                alt={conv.name}
+                                className="w-full h-full rounded-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-sm font-bold">{conv.name[0].toUpperCase()}</span>
+                            )}
+                          </div>
+                          {conv.unread && conv.unread > 0 && (
+                            <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                              {conv.unread}
+                            </span>
                           )}
                         </div>
-                        {conv.updatedAt && (
-                          <span className="text-[10px] text-text-secondary flex-shrink-0">
-                            {conv.updatedAt.toLocaleDateString() ===
-                            new Date().toLocaleDateString()
-                              ? conv.updatedAt.toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
-                              : conv.updatedAt.toLocaleDateString()}
-                          </span>
-                        )}
-                      </button>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-text dark:text-white truncate">
+                              {conv.name}
+                            </p>
+                            {conv.updatedAt && (
+                              <span className="text-[10px] text-text-secondary flex-shrink-0 ml-2">
+                                {conv.updatedAt.toLocaleDateString() ===
+                                new Date().toLocaleDateString()
+                                  ? conv.updatedAt.toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })
+                                  : conv.updatedAt.toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-text-secondary truncate mt-0.5">
+                            {conv.lastMessage || ""}
+                          </p>
+                        </div>
+                      </motion.button>
                     ))
                   )}
                 </div>
@@ -338,6 +502,20 @@ export function FloatingChat({ session }: { session: Session }) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Modal de création de groupe */}
+      {showGroupModal && (
+        <CreateGroupModal
+          chatClient={chatClient!}
+          userId={session.user.id}
+          onClose={() => setShowGroupModal(false)}
+          onGroupCreated={(channelId) => {
+            setShowGroupModal(false);
+            setActiveChannelId(channelId);
+            setActiveFriendId(null);
+          }}
+        />
+      )}
     </>
   );
 }

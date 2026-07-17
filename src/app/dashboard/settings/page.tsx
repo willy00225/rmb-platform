@@ -1,10 +1,29 @@
 ﻿"use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
-import { Loader2, Save, Camera, ImagePlus } from "lucide-react";
+import { Loader2, Save, Camera, ImagePlus, Bell, BellOff } from "lucide-react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+
+// Types pour les préférences de notification
+interface NotificationPrefs {
+  [key: string]: boolean;
+}
+
+// Clés et libellés affichés dans l'interface
+const NOTIFICATION_LABELS: Record<string, string> = {
+  push_enabled: "🔔 Notifications push globales",
+  email_enabled: "📧 Notifications email globales",
+  new_message: "Nouveau message",
+  new_follower: "Nouvel abonné",
+  new_comment: "Nouveau commentaire",
+  post_liked: "J'aime sur une publication",
+  page_followed: "Abonnement à une page",
+  challenge_reminder: "Rappel de défi",
+  event_reminder: "Rappel d'événement",
+  marketing: "Actualités et offres",
+};
 
 export default function SettingsPage() {
   const { data: session, update } = useSession();
@@ -24,7 +43,19 @@ export default function SettingsPage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSave = async () => {
+  // 🔔 État pour les préférences de notification
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>({});
+  const [savingNotifs, setSavingNotifs] = useState(false);
+
+  // Charger les préférences au montage
+  useEffect(() => {
+    fetch("/api/profile/notifications")
+      .then((res) => res.json())
+      .then((data) => setNotifPrefs(data))
+      .catch(() => {});
+  }, []);
+
+  const handleSaveProfile = async () => {
     setLoading(true);
     const body: Record<string, unknown> = { firstName, lastName, email, phone, fonction };
     if (newPassword) {
@@ -47,13 +78,38 @@ export default function SettingsPage() {
     setLoading(false);
   };
 
+  const handleSaveNotifications = async () => {
+    setSavingNotifs(true);
+    try {
+      const res = await fetch("/api/profile/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(notifPrefs),
+      });
+      if (res.ok) {
+        toast.success("Préférences de notifications enregistrées");
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "Erreur");
+      }
+    } catch {
+      toast.error("Erreur réseau");
+    } finally {
+      setSavingNotifs(false);
+    }
+  };
+
+  const handleNotifToggle = (key: string, value: boolean) => {
+    setNotifPrefs((prev) => ({ ...prev, [key]: value }));
+  };
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setAvatarUploading(true);
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("type", "avatar");   // ✅ ajouté
+    formData.append("type", "avatar");
     const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
     if (uploadRes.ok) {
       const { url } = await uploadRes.json();
@@ -75,7 +131,7 @@ export default function SettingsPage() {
     setCoverUploading(true);
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("type", "cover");   // ✅ ajouté
+    formData.append("type", "cover");
     const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
     if (uploadRes.ok) {
       const { url } = await uploadRes.json();
@@ -169,10 +225,74 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <Button onClick={handleSave} disabled={loading} variant="primary" size="lg" className="w-full">
+        <Button onClick={handleSaveProfile} disabled={loading} variant="primary" size="lg" className="w-full">
           {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
           <span className="ml-2">Enregistrer les modifications</span>
         </Button>
+      </div>
+
+      {/* 🔔 Notifications */}
+      <div className="card-premium p-6 space-y-6">
+        <h2 className="text-lg font-semibold text-text">Notifications</h2>
+        <p className="text-sm text-text-secondary">
+          Gérez vos préférences de notification pour rester informé sans être submergé.
+        </p>
+
+        {Object.keys(notifPrefs).length === 0 ? (
+          <div className="text-center py-4 text-text-secondary text-sm">Aucune préférence enregistrée.</div>
+        ) : (
+          <div className="space-y-4">
+            {/* Interrupteurs globaux */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center justify-between bg-gray-50 dark:bg-white/5 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2 text-sm">
+                  {notifPrefs.push_enabled ? <Bell size={16} className="text-primary" /> : <BellOff size={16} className="text-text-secondary" />}
+                  <span className={notifPrefs.push_enabled ? "text-text" : "text-text-secondary"}>Push</span>
+                </div>
+                <button
+                  onClick={() => handleNotifToggle("push_enabled", !notifPrefs.push_enabled)}
+                  className={`relative w-10 h-6 rounded-full transition-colors ${notifPrefs.push_enabled ? "bg-primary" : "bg-gray-300 dark:bg-gray-600"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${notifPrefs.push_enabled ? "translate-x-4" : ""}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between bg-gray-50 dark:bg-white/5 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2 text-sm">
+                  {notifPrefs.email_enabled ? <Bell size={16} className="text-primary" /> : <BellOff size={16} className="text-text-secondary" />}
+                  <span className={notifPrefs.email_enabled ? "text-text" : "text-text-secondary"}>Email</span>
+                </div>
+                <button
+                  onClick={() => handleNotifToggle("email_enabled", !notifPrefs.email_enabled)}
+                  className={`relative w-10 h-6 rounded-full transition-colors ${notifPrefs.email_enabled ? "bg-primary" : "bg-gray-300 dark:bg-gray-600"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${notifPrefs.email_enabled ? "translate-x-4" : ""}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Notifications par type d'événement */}
+            <div className="space-y-3">
+              {Object.entries(NOTIFICATION_LABELS)
+                .filter(([key]) => key !== "push_enabled" && key !== "email_enabled")
+                .map(([key, label]) => (
+                  <div key={key} className="flex items-center justify-between bg-gray-50 dark:bg-white/5 rounded-xl px-4 py-3">
+                    <span className="text-sm text-text">{label}</span>
+                    <button
+                      onClick={() => handleNotifToggle(key, !notifPrefs[key])}
+                      className={`relative w-10 h-6 rounded-full transition-colors ${notifPrefs[key] ? "bg-primary" : "bg-gray-300 dark:bg-gray-600"}`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${notifPrefs[key] ? "translate-x-4" : ""}`} />
+                    </button>
+                  </div>
+                ))}
+            </div>
+
+            <Button onClick={handleSaveNotifications} disabled={savingNotifs} variant="primary" size="sm" className="w-full">
+              {savingNotifs ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+              <span className="ml-2">Enregistrer les préférences de notification</span>
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

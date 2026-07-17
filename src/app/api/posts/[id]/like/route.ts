@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { sendPushNotification } from "@/lib/onesignal";
+import { notifyUser } from "@/lib/notify";
 
 export async function POST(
   req: Request,
@@ -36,18 +36,19 @@ export async function POST(
   // Notification à l'auteur du post (sauf si c'est lui-même)
   const post = await prisma.post.findUnique({
     where: { id: postId },
-    select: { userId: true, content: true },
+    select: { userId: true },
   });
   if (post && post.userId !== session.user.id) {
     const liker = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { firstName: true },
     });
-    await sendPushNotification({
-      headings: { fr: "Nouveau J’aime 👍" },
-      contents: { fr: `${liker?.firstName || "Quelqu’un"} a aimé votre publication.` },
-      includeExternalUserIds: [post.userId],
-    });
+    await notifyUser(
+      post.userId,
+      "post_liked",
+      "Nouveau J’aime 👍",
+      `${liker?.firstName || "Quelqu’un"} a aimé votre publication.`
+    );
   }
 
   return NextResponse.json({ liked: true });

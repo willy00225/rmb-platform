@@ -1,7 +1,9 @@
 ﻿"use client";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, ChevronRight, Heart, Send, Smile, Trash2, Eye } from "lucide-react";
+import {
+  X, Heart, Send, Smile, Trash2, Eye, User,
+} from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -11,13 +13,20 @@ interface Story {
   userId: string;
   mediaUrl: string;
   mediaType: "image" | "video" | string;
-  caption?: string | null; // ✅ légende
+  caption?: string | null;
+  user?: {
+    firstName: string;
+    lastName: string;
+    avatar?: string | null;
+  };
 }
 
 interface StoryViewerProps {
   userId: string | null;
   onClose: () => void;
 }
+
+const STORY_DURATION = 5000; // 5 secondes par story
 
 export function StoryViewer({ userId, onClose }: StoryViewerProps) {
   const { data: session } = useSession();
@@ -30,11 +39,15 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
   const [showEmoji, setShowEmoji] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [viewsCount, setViewsCount] = useState(0); // ✅ nombre de vues
+  const [viewsCount, setViewsCount] = useState(0);
+  const [showHeart, setShowHeart] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const remainingTimeRef = useRef(5000);
-  const startTimeRef = useRef(Date.now());
+  const pauseTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartX = useRef(0);
 
+  // Charger les stories
   useEffect(() => {
     if (!userId) return;
 
@@ -51,35 +64,57 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
       .catch(() => {});
   }, [userId, session]);
 
-  // Charger les likes et les vues de la story courante
+  // Réinitialiser et charger les données de la story courante
   useEffect(() => {
     if (stories.length === 0) return;
     const story = stories[currentIndex];
-    // Récupérer les likes
+    // Récupérer les réactions
     fetch(`/api/stories/${story.id}/reactions`)
       .then((res) => res.json())
       .then((data) => {
-        setLikesCount(data.count);
-        setLiked(data.likes.some((l: any) => l.userId === session?.user?.id));
+        setLikesCount(data.count || 0);
+        setLiked(data.likes?.some((l: any) => l.userId === session?.user?.id) || false);
       })
       .catch(() => {});
 
-    // Récupérer le nombre de vues
+    // Récupérer les vues
     fetch(`/api/stories/${story.id}/views`)
       .then((res) => res.json())
       .then((data) => setViewsCount(data.count || 0))
       .catch(() => {});
 
-    // Enregistrer la vue (si ce n'est pas l'auteur)
+    // Enregistrer la vue
     if (story.userId !== session?.user?.id) {
       fetch(`/api/stories/${story.id}/view`, { method: "POST" })
-        .then(() => {
-          // Mettre à jour le compteur localement après l'enregistrement
-          setViewsCount((prev) => prev + 1);
-        })
+        .then(() => setViewsCount((prev) => prev + 1))
         .catch(() => {});
     }
+
+    // Démarrer le timer
+    startTimer();
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+    };
   }, [currentIndex, stories, session]);
+
+  const startTimer = () => {
+    setProgress(0);
+    const startTime = Date.now();
+    const tick = () => {
+      if (isPaused) return;
+      const elapsed = Date.now() - startTime;
+      const newProgress = Math.min(100, (elapsed / STORY_DURATION) * 100);
+      setProgress(newProgress);
+      if (newProgress >= 100) {
+        next();
+      } else {
+        timerRef.current = setTimeout(tick, 50);
+      }
+    };
+    timerRef.current = setTimeout(tick, 50);
+  };
 
   const toggleLike = async () => {
     if (isLiking) return;
@@ -91,6 +126,10 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
         const { liked: newLiked } = await res.json();
         setLiked(newLiked);
         setLikesCount((prev) => prev + (newLiked ? 1 : -1));
+        if (newLiked) {
+          setShowHeart(true);
+          setTimeout(() => setShowHeart(false), 1000);
+        }
       }
     } catch (err) {
       toast.error("Erreur");
@@ -134,45 +173,19 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
     }
   }, [currentIndex]);
 
-  const handleTap = (e: React.MouseEvent<HTMLDivElement>) => {
-    const { clientX, currentTarget } = e;
-    const { left, width } = currentTarget.getBoundingClientRect();
-    const middle = left + width / 2;
-    if (clientX < middle) prev();
-    else next();
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
   };
 
-  const [lastTap, setLastTap] = useState(0);
-  const handleDoubleTap = (e: React.MouseEvent<HTMLDivElement>) => {
-    const now = Date.now();
-    if (now - lastTap < 300) {
-      toggleLike();
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const diff = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(diff) > 50) {
+      if (diff < 0) next();
+      else prev();
     }
-    setLastTap(now);
   };
 
-  // Timer
-  useEffect(() => {
-    if (stories.length === 0) return;
-    remainingTimeRef.current = 5000;
-    startTimeRef.current = Date.now();
-    const tick = () => {
-      const elapsed = Date.now() - startTimeRef.current;
-      const remaining = Math.max(0, 5000 - elapsed);
-      remainingTimeRef.current = remaining;
-      if (remaining <= 0) {
-        next();
-      } else {
-        timerRef.current = setTimeout(tick, 100);
-      }
-    };
-    timerRef.current = setTimeout(tick, 100);
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [currentIndex, stories, next]);
-
-  const deleteStory = async (storyId: string) => {
+  const handleDeleteStory = async (storyId: string) => {
     if (!confirm("Supprimer cette story ?")) return;
     setIsDeleting(true);
     try {
@@ -223,7 +236,6 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
 
   const story = stories[currentIndex];
   const isOwner = session?.user?.id === story.userId;
-  const progress = remainingTimeRef.current / 5000;
 
   return (
     <AnimatePresence>
@@ -233,173 +245,145 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[200] bg-black flex items-center justify-center"
       >
-        {/* Fermer */}
-        <button
-          onClick={onClose}
-          className="absolute top-6 right-6 z-30 text-white hover:text-gray-300 transition"
-        >
-          <X size={36} />
-        </button>
-
-        {/* Bouton supprimer (si propriétaire) */}
-        {isOwner && (
-          <button
-            onClick={() => deleteStory(story.id)}
-            disabled={isDeleting}
-            className="absolute top-6 right-20 z-30 text-white hover:text-red-400 transition"
-            title="Supprimer"
-          >
-            <Trash2 size={28} />
-          </button>
-        )}
-
-        {/* Barre de progression */}
-        <div className="absolute top-4 left-4 right-16 flex gap-1.5 z-30">
-          {stories.map((_, idx) => (
-            <div key={idx} className="flex-1 h-1.5 rounded-full bg-white/30 overflow-hidden">
-              <motion.div
-                className="h-full bg-white rounded-full"
-                initial={{ width: "0%" }}
-                animate={{
-                  width:
-                    idx < currentIndex
-                      ? "100%"
-                      : idx === currentIndex
-                      ? `${100 - progress * 100}%`
-                      : "0%",
-                }}
-                transition={
-                  idx === currentIndex
-                    ? { duration: 0.1, ease: "linear" }
-                    : { duration: 0.3 }
-                }
-              />
+        {/* Header */}
+        <div className="absolute top-0 left-0 right-0 p-4 z-30">
+          <div className="flex items-center gap-2 mb-2">
+            {/* Avatar et nom (à adapter selon vos données) */}
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+              <User size={16} className="text-white" />
             </div>
-          ))}
+            <span className="text-white text-sm font-medium">
+              {story.user?.firstName || "Utilisateur"} {story.user?.lastName || ""}
+            </span>
+          </div>
+          <div className="flex gap-1">
+            {stories.map((_, idx) => (
+              <div key={idx} className="flex-1 h-1 rounded-full bg-white/30 overflow-hidden">
+                <div
+                  className="h-full bg-white rounded-full transition-all duration-100 ease-linear"
+                  style={{
+                    width: `${idx === currentIndex ? progress : idx < currentIndex ? 100 : 0}%`,
+                  }}
+                />
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Zone de contenu */}
+        {/* Boutons d'action */}
+        <div className="absolute top-6 right-6 z-30 flex gap-3">
+          {isOwner && (
+            <button
+              onClick={() => handleDeleteStory(story.id)}
+              disabled={isDeleting}
+              className="p-2 rounded-full bg-black/50 text-white hover:bg-red-500/80 transition"
+            >
+              <Trash2 size={22} />
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        {/* Contenu principal */}
         <div
-          className="relative w-full h-full max-w-4xl mx-auto flex items-center justify-center"
-          onDoubleClick={handleDoubleTap}
-          onClick={handleTap}
+          className="relative w-full h-full max-w-lg mx-auto"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onMouseDown={() => setIsPaused(true)}
+          onMouseUp={() => setIsPaused(false)}
+          onMouseLeave={() => setIsPaused(false)}
         >
           <AnimatePresence mode="wait">
             <motion.div
               key={currentIndex}
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.05 }}
+              exit={{ opacity: 0, scale: 1.02 }}
               transition={{ duration: 0.3 }}
-              className="w-full h-[85vh] mx-4 rounded-2xl overflow-hidden relative"
+              className="w-full h-full flex items-center justify-center p-4"
             >
               {story.mediaType === "video" ? (
                 <video
                   src={story.mediaUrl}
                   controls
                   autoPlay
-                  className="w-full h-full object-cover"
+                  muted={false}
+                  className="max-w-full max-h-full object-cover rounded-xl"
                 />
               ) : (
                 <img
                   src={story.mediaUrl}
                   alt=""
-                  className="w-full h-full object-contain"
+                  className="max-w-full max-h-full object-contain rounded-xl"
+                  onDoubleClick={toggleLike}
                 />
               )}
-              {/* ✅ Légende */}
-              {story.caption && (
-                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 to-transparent">
-                  <p className="text-white text-sm font-medium">{story.caption}</p>
-                </div>
-              )}
+              {/* Animation de like */}
+              <AnimatePresence>
+                {showHeart && (
+                  <motion.div
+                    initial={{ scale: 0, opacity: 1 }}
+                    animate={{ scale: 1.5, opacity: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.6 }}
+                    className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                  >
+                    <Heart size={80} fill="white" className="text-white" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           </AnimatePresence>
 
-          {/* Flèches */}
-          {currentIndex > 0 && (
-            <button
-              onClick={prev}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition"
-            >
-              <ChevronLeft size={28} />
-            </button>
-          )}
-          {currentIndex < stories.length - 1 && (
-            <button
-              onClick={next}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition"
-            >
-              <ChevronRight size={28} />
-            </button>
+          {/* Légende */}
+          {story.caption && (
+            <div className="absolute bottom-20 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+              <p className="text-white text-sm font-medium">{story.caption}</p>
+            </div>
           )}
         </div>
 
-        {/* Barre d'actions en bas */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 z-30 bg-gradient-to-t from-black/60 to-transparent">
-          <div className="flex items-center justify-between max-w-4xl mx-auto">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={toggleLike}
-                disabled={isLiking}
-                className={`p-2 rounded-full ${
-                  liked ? "text-red-500" : "text-white"
-                } hover:bg-white/20 transition`}
-              >
-                <Heart size={28} fill={liked ? "currentColor" : "none"} />
-              </button>
-              {likesCount > 0 && (
-                <span className="text-white text-sm font-medium">
-                  {likesCount} j&apos;adore{likesCount > 1 ? "nt" : ""}
-                </span>
-              )}
-              {/* ✅ Compteur de vues */}
-              {viewsCount > 0 && (
-                <span className="text-white text-sm font-medium flex items-center gap-1">
-                  <Eye size={16} /> {viewsCount}
-                </span>
-              )}
-            </div>
+        {/* Barre d'actions du bas */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 z-30">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleLike}
+              disabled={isLiking}
+              className={`p-2 rounded-full ${
+                liked ? "text-red-500" : "text-white"
+              } hover:bg-white/20 transition`}
+            >
+              <Heart size={28} fill={liked ? "currentColor" : "none"} />
+            </button>
+            <span className="text-white text-sm">
+              {likesCount > 0 && `${likesCount}`}
+            </span>
+            <span className="text-white text-sm flex items-center gap-1">
+              <Eye size={16} /> {viewsCount}
+            </span>
 
-            <div className="flex items-center gap-2 flex-1 ml-4">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  value={reply}
-                  onChange={(e) => setReply(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSendReply();
-                  }}
-                  placeholder="Répondre..."
-                  className="w-full py-2 px-4 pr-10 rounded-full bg-white/20 text-white placeholder-white/70 text-sm border border-white/20 focus:outline-none focus:border-white/50"
-                />
-                <button
-                  onClick={() => setShowEmoji(!showEmoji)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white/80 hover:text-white"
-                >
-                  <Smile size={18} />
-                </button>
-                {showEmoji && (
-                  <div className="absolute bottom-10 right-0 bg-surface border border-border rounded-xl p-2 shadow-lg z-40">
-                    <div className="grid grid-cols-6 gap-1">
-                      {["😍", "😂", "👍", "🔥", "🎉", "💪", "😢", "😡", "❤️", "😲", "👏", "🙌"].map(
-                        (emoji) => (
-                          <button
-                            key={emoji}
-                            onClick={() => {
-                              setReply((prev) => prev + emoji);
-                              setShowEmoji(false);
-                            }}
-                            className="text-xl hover:bg-gray-100 dark:hover:bg-white/10 p-1 rounded"
-                          >
-                            {emoji}
-                          </button>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+            <div className="flex-1 flex items-center gap-2 ml-4">
+              <input
+                type="text"
+                value={reply}
+                onChange={(e) => setReply(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSendReply();
+                }}
+                placeholder="Répondre..."
+                className="flex-1 py-2 px-4 rounded-full bg-white/20 text-white placeholder-white/60 text-sm border border-white/20 focus:outline-none focus:border-white/40"
+              />
+              <button
+                onClick={() => setShowEmoji(!showEmoji)}
+                className="p-2 text-white/80 hover:text-white transition"
+              >
+                <Smile size={20} />
+              </button>
               <button
                 onClick={handleSendReply}
                 disabled={!reply.trim()}
@@ -407,6 +391,26 @@ export function StoryViewer({ userId, onClose }: StoryViewerProps) {
               >
                 <Send size={18} />
               </button>
+              {showEmoji && (
+                <div className="absolute bottom-16 right-4 bg-gray-900 border border-gray-700 rounded-xl p-2 shadow-lg z-40">
+                  <div className="grid grid-cols-6 gap-1">
+                    {["😍", "😂", "👍", "🔥", "🎉", "💪", "😢", "😡", "❤️", "😲", "👏", "🙌"].map(
+                      (emoji) => (
+                        <button
+                          key={emoji}
+                          onClick={() => {
+                            setReply((prev) => prev + emoji);
+                            setShowEmoji(false);
+                          }}
+                          className="text-xl hover:bg-gray-700 p-1 rounded"
+                        >
+                          {emoji}
+                        </button>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

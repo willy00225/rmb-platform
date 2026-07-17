@@ -1,7 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { sendPushNotification } from "@/lib/onesignal";
+import { notifyUser } from "@/lib/notify";
 
 // GET : stories actives des amis + les siennes
 export async function GET() {
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { mediaUrl, mediaType } = await req.json();
+  const { mediaUrl, mediaType, caption } = await req.json();
   if (!mediaUrl) return NextResponse.json({ error: "Média requis" }, { status: 400 });
 
   const expiresAt = new Date();
@@ -67,11 +67,18 @@ export async function POST(req: Request) {
       userId: session.user.id,
       mediaUrl,
       mediaType: mediaType || "image",
+      caption: caption || null,
       expiresAt,
     },
   });
 
   // --- Notification aux amis ---
+  const currentUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { firstName: true },
+  });
+  const userName = currentUser?.firstName || "Quelqu'un";
+
   const friendships = await prisma.friendship.findMany({
     where: {
       OR: [{ requesterId: session.user.id }, { addresseeId: session.user.id }],
@@ -83,13 +90,13 @@ export async function POST(req: Request) {
     f.requesterId === session.user.id ? f.addresseeId : f.requesterId
   );
 
-  const userName = session.user.name || "Quelqu'un";
   for (const friendId of friendIds) {
-    await sendPushNotification({
-      headings: { fr: "Nouvelle story 📸" },
-      contents: { fr: `${userName} a publié une story.` },
-      includeExternalUserIds: [friendId],
-    });
+    await notifyUser(
+      friendId,
+      "new_story",
+      "Nouvelle story 📸",
+      `${userName} a publié une story.`
+    );
   }
   // ---------------------------------
 

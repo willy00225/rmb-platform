@@ -1,24 +1,43 @@
 "use client";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/Button";
-import { Loader2, MapPin, Tag, ShoppingCart, MessageCircle } from "lucide-react";
+import {
+  Loader2,
+  MapPin,
+  Tag,
+  ShoppingCart,
+  MessageCircle,
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Calendar,
+  User,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { useSession } from "next-auth/react";
-import { useChat } from "@/contexts/ChatContext"; // ✅ import du contexte de chat
+import { useChat } from "@/contexts/ChatContext";
+import { MediaViewer } from "@/components/ui/MediaViewer"; // ✅ réutilisation
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { data: session } = useSession();
-  const { openChatWithFriend } = useChat(); // ✅ permet d’ouvrir une conversation
+  const { openChatWithFriend } = useChat();
 
-  const { data: product, isLoading } = useQuery({
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const { data: product, isLoading, isError } = useQuery({
     queryKey: ["product", id],
-    queryFn: () => fetch(`/api/marketplace/${id}`).then(res => res.json()),
+    queryFn: () => fetch(`/api/marketplace/${id}`).then((res) => res.json()),
   });
 
   const handleBuy = async () => {
+    if (!confirm("Confirmez-vous l'achat de cet article ?")) return;
     const res = await fetch("/api/marketplace/buy", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -32,54 +51,217 @@ export default function ProductDetailPage() {
     }
   };
 
-  if (isLoading) return <Loader2 className="animate-spin text-primary mx-auto mt-10" size={32} />;
-  if (!product) return <p className="text-text-secondary">Produit introuvable.</p>;
+  if (isLoading)
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="animate-spin text-primary" size={40} />
+      </div>
+    );
+
+  if (isError || !product)
+    return (
+      <div className="text-center py-20">
+        <p className="text-text-secondary text-lg">Produit introuvable.</p>
+        <Button onClick={() => router.back()} variant="secondary" className="mt-4">
+          Retour
+        </Button>
+      </div>
+    );
 
   const isOwner = product.userId === session?.user?.id;
+  const images = product.images && product.images.length > 0 ? product.images : [];
+  const currentImage = images.length > 0 ? images[currentImageIndex] : null;
 
   return (
-    <div className="space-y-8 animate-fadeInUp max-w-2xl mx-auto">
-      <button onClick={() => router.back()} className="text-primary hover:underline text-sm">&larr; Retour</button>
-      <div className="rounded-2xl bg-white dark:bg-surface border border-border overflow-hidden">
-        {product.images?.[0] ? (
-          <img src={product.images[0]} alt={product.title} className="w-full h-64 object-cover" />
-        ) : (
-          <div className="w-full h-64 bg-gray-100 dark:bg-white/5 flex items-center justify-center">
-            <Tag size={48} className="text-text-secondary" />
+    <div className="max-w-4xl mx-auto space-y-6 animate-fadeInUp py-8 px-4">
+      {/* Retour */}
+      <button
+        onClick={() => router.back()}
+        className="flex items-center gap-2 text-sm text-text-secondary hover:text-text transition"
+      >
+        <ArrowLeft size={18} />
+        Retour au marketplace
+      </button>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Galerie d'images */}
+        <div className="space-y-3">
+          <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 dark:bg-white/5 border border-border">
+            {currentImage ? (
+              <motion.img
+                key={currentImageIndex}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                src={currentImage}
+                alt={product.title}
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => setLightboxOpen(true)}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-text-secondary">
+                <Tag size={64} className="opacity-30" />
+              </div>
+            )}
+            {/* Navigation */}
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={() =>
+                    setCurrentImageIndex((prev) =>
+                      prev === 0 ? images.length - 1 : prev - 1
+                    )
+                  }
+                  className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button
+                  onClick={() =>
+                    setCurrentImageIndex((prev) =>
+                      prev === images.length - 1 ? 0 : prev + 1
+                    )
+                  }
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </>
+            )}
+            {images.length > 0 && (
+              <button
+                onClick={() => setLightboxOpen(true)}
+                className="absolute top-3 right-3 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition"
+              >
+                <Eye size={18} />
+              </button>
+            )}
           </div>
-        )}
-        <div className="p-6">
-          <h1 className="text-2xl font-bold text-text">{product.title}</h1>
-          <p className="text-primary font-bold text-xl mt-2">{product.price.toLocaleString()} FCFA</p>
-          {product.location && (
-            <p className="text-text-secondary flex items-center gap-1 mt-2"><MapPin size={16} /> {product.location}</p>
+
+          {/* Miniatures */}
+          {images.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {images.map((img: string, index: number) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentImageIndex(index)}
+                  className={`w-16 h-16 rounded-lg overflow-hidden border-2 transition flex-shrink-0 ${
+                    index === currentImageIndex
+                      ? "border-primary"
+                      : "border-transparent hover:border-primary/50"
+                  }`}
+                >
+                  <img
+                    src={img}
+                    alt={`Image ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
           )}
-          <p className="text-text-secondary mt-4">{product.description}</p>
-          <p className="text-text-secondary text-sm mt-4">
-            Vendu par {product.user?.firstName} {product.user?.lastName}
-          </p>
+        </div>
+
+        {/* Informations produit */}
+        <div className="space-y-5">
+          <div>
+            <p className="text-xs font-medium text-primary uppercase tracking-wide">
+              {product.category ? product.category : "Non catégorisé"}
+            </p>
+            <h1 className="text-2xl md:text-3xl font-bold text-text mt-1">
+              {product.title}
+            </h1>
+          </div>
+
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold text-primary">
+              {product.price.toLocaleString()}
+            </span>
+            <span className="text-text-secondary">FCFA</span>
+          </div>
+
+          {product.location && (
+            <p className="flex items-center gap-1.5 text-text-secondary">
+              <MapPin size={18} /> {product.location}
+            </p>
+          )}
+
+          <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4 space-y-2">
+            <h3 className="font-semibold text-text">Description</h3>
+            <p className="text-text-secondary text-sm whitespace-pre-line">
+              {product.description}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 text-sm text-text-secondary">
+            <div className="flex items-center gap-1.5">
+              <User size={16} />
+              <span>
+                {product.user?.firstName} {product.user?.lastName}
+              </span>
+            </div>
+            {product.createdAt && (
+              <div className="flex items-center gap-1.5">
+                <Calendar size={16} />
+                <span>
+                  {new Date(product.createdAt).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* Actions */}
           {product.status === "active" && !isOwner && (
-            <div className="flex flex-col sm:flex-row gap-3 mt-6">
-              <Button onClick={handleBuy} variant="primary" size="lg" className="flex-1">
-                <ShoppingCart size={20} /> Acheter
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <Button
+                onClick={handleBuy}
+                variant="primary"
+                size="lg"
+                className="flex-1"
+              >
+                <ShoppingCart size={20} className="mr-2" />
+                Acheter maintenant
               </Button>
               <Button
-                onClick={() => openChatWithFriend(product.userId)} // ✅ ouvre le chat avec le vendeur
+                onClick={() => openChatWithFriend(product.userId)}
                 variant="secondary"
                 size="lg"
                 className="flex-1"
               >
-                <MessageCircle size={20} /> Contacter le vendeur
+                <MessageCircle size={20} className="mr-2" />
+                Contacter le vendeur
               </Button>
             </div>
           )}
+
           {product.status === "sold" && (
-            <p className="text-red-500 mt-4 font-medium">Vendu</p>
+            <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 rounded-xl p-4 text-center font-medium">
+              Cet article a été vendu.
+            </div>
+          )}
+
+          {isOwner && (
+            <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl p-4 text-center font-medium">
+              C&apos;est votre annonce. Vous ne pouvez pas acheter votre propre
+              article.
+            </div>
           )}
         </div>
       </div>
+
+      {/* Lightbox (MediaViewer) */}
+      {lightboxOpen && currentImage && (
+        <MediaViewer
+          open={lightboxOpen}
+          onClose={() => setLightboxOpen(false)}
+          src={currentImage}
+          type="image"
+          caption={product.title}
+        />
+      )}
     </div>
   );
 }

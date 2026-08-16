@@ -9,10 +9,13 @@ export function DashboardProviders({ children }: { children: React.ReactNode }) 
     defaultOptions: { queries: { staleTime: 60 * 1000 } },
   }));
 
+  // ✅ Fallback si NEXT_PUBLIC_NEXTAUTH_URL n'est pas disponible (ex: après build)
+  const baseUrl =
+    process.env.NEXT_PUBLIC_NEXTAUTH_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "");
+
   return (
-    <SessionProvider
-      baseUrl={process.env.NEXT_PUBLIC_NEXTAUTH_URL}
-    >
+    <SessionProvider baseUrl={baseUrl}>
       <QueryClientProvider client={queryClient}>
         {children}
         <Toaster position="top-right" toastOptions={{ style: { background: "#1F2A22", color: "#FFFFFF", border: "1px solid #E5E7EB" } }} />

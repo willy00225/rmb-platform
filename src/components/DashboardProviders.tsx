@@ -9,10 +9,12 @@ export function DashboardProviders({ children }: { children: React.ReactNode }) 
     defaultOptions: { queries: { staleTime: 60 * 1000 } },
   }));
 
-  // ✅ Fallback si NEXT_PUBLIC_NEXTAUTH_URL n'est pas disponible (ex: après build)
+  // ✅ URL de secours en dur pour éviter toute dépendance à une variable mal configurée
+  const FALLBACK_URL = "https://rmb-platform-production.up.railway.app";
   const baseUrl =
     process.env.NEXT_PUBLIC_NEXTAUTH_URL ||
-    (typeof window !== "undefined" ? window.location.origin : "");
+    (typeof window !== "undefined" ? window.location.origin : "") ||
+    FALLBACK_URL;
 
   return (
     <SessionProvider baseUrl={baseUrl}>

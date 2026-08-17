@@ -4,14 +4,14 @@ import { NextResponse } from "next/server";
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
-  const { id } = params;
+  const { id } = await params;
 
   const live = await prisma.live.findUnique({
     where: { id },

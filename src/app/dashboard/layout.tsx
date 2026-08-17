@@ -12,7 +12,7 @@ import { OneSignalRegistrar } from "@/components/notifications/OneSignalRegistra
 import { StoriesBar } from "@/components/stories/StoriesBar";
 import { StoryViewer } from "@/components/stories/StoryViewer";
 import { ChatProvider } from "@/contexts/ChatContext";
-import { StreamChatProvider } from "@/contexts/StreamChatContext"; // ← nouveau
+import { StreamChatProvider } from "@/contexts/StreamChatContext";
 import { NotificationsProvider, useNotifications } from "@/contexts/NotificationsContext";
 import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 import {
@@ -46,7 +46,6 @@ function MobileHeaderInline() {
   });
   const unreadCount = unreadData?.count || 0;
 
-  // ✅ Indicateur de lives en cours
   const { data: livesData } = useQuery({
     queryKey: ["lives-count"],
     queryFn: () => fetch("/api/live/rooms").then(res => res.json()),
@@ -103,7 +102,6 @@ function MobileHeaderInline() {
             <Trophy size={20} />
           </Link>
 
-          {/* ✅ Bouton Lives avec indicateur de direct */}
           <Link
             href="/dashboard/live"
             className={`w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-white/10 transition relative ${
@@ -250,7 +248,6 @@ function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
   ];
   const isExempted = exemptedPaths.some(p => pathname.startsWith(p)) || (pathname.startsWith("/dashboard/admin") && isAdmin);
 
-  // ✅ Redirection forcée vers le KYC si non vérifié, sauf sur les pages exemptées
   if (!isKycVerified && !isExempted) {
     router.push("/dashboard/kyc");
     return null;
@@ -265,11 +262,16 @@ function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-bkg overflow-x-hidden">
-      <DesktopHeader />
-      <Sidebar />
-      <div className="md:pl-60 lg:pr-80">
-        <MobileHeaderInline />
-        <main className={`pt-16 md:pt-14 pb-24 md:pb-0 min-h-screen ${isAdminPage ? "pb-36" : ""}`}>
+      {/* En mode live, on masque les sidebars et headers pour un affichage immersif */}
+      {!isLivePage && <DesktopHeader />}
+      {!isLivePage && <Sidebar />}
+      <div className={isLivePage ? "h-screen flex flex-col" : "md:pl-60 lg:pr-80"}>
+        {!isLivePage && <MobileHeaderInline />}
+        <main className={
+          isLivePage
+            ? "flex-1 min-h-0"
+            : `pt-16 md:pt-14 pb-24 md:pb-0 min-h-screen ${isAdminPage ? "pb-36" : ""}`
+        }>
           {isLivePage ? (
             <div className="h-full w-full">{children}</div>
           ) : (
@@ -281,10 +283,10 @@ function DashboardInnerLayout({ children }: { children: React.ReactNode }) {
             </div>
           )}
         </main>
-        <MobileNav />
+        {!isLivePage && <MobileNav />}
       </div>
-      <RightSidebar />
-      <FloatingChat session={session} />
+      {!isLivePage && <RightSidebar />}
+      {!isLivePage && <FloatingChat session={session} />}
       <SpotOverlay />
       <NotificationPrompt />
       <OneSignalRegistrar />

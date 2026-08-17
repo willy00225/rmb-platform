@@ -77,6 +77,26 @@ export default function NewProductPage() {
     setPreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Nouvelle fonction pour téléverser les images une par une
+  const uploadImages = async (): Promise<string[]> => {
+    if (images.length === 0) return [];
+
+    const urls: string[] = [];
+    for (const img of images) {
+      const formData = new FormData();
+      formData.append("file", img);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Échec du téléversement d'une image");
+      const { url } = await res.json();
+      urls.push(url);
+    }
+    return urls;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim() || !price || !category) {
@@ -85,19 +105,25 @@ export default function NewProductPage() {
     }
 
     setLoading(true);
-    const formData = new FormData();
-    formData.append("title", title);
-    formData.append("description", description);
-    formData.append("price", price);
-    formData.append("category", category);
-    if (location) formData.append("location", location);
-    images.forEach((img) => formData.append("images", img));
-
     try {
+      // 1. Téléverser les images et obtenir les URLs
+      const imageUrls = await uploadImages();
+
+      // 2. Envoyer les données en JSON
       const res = await fetch("/api/marketplace", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description,
+          price: Number(price),
+          category,
+          location: location || null,
+          condition: "new",
+          images: imageUrls,
+        }),
       });
+
       if (res.ok) {
         toast.success("Produit publié avec succès !");
         router.push("/dashboard/marketplace");
@@ -105,8 +131,9 @@ export default function NewProductPage() {
         const err = await res.json();
         toast.error(err.error || "Erreur lors de la publication.");
       }
-    } catch {
-      toast.error("Erreur réseau.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur lors du téléversement ou de la publication.");
     } finally {
       setLoading(false);
     }

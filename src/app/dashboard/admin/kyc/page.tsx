@@ -1,13 +1,12 @@
 ﻿"use client";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import {
   Loader2,
   CheckCircle,
   XCircle,
-  User,
   FileText,
   Eye,
   Clock,
@@ -28,9 +27,16 @@ interface KycDocument {
   };
 }
 
+// 🔍 Détection des anciennes URLs Supabase
+const isSupabaseUrl = (url: string) => {
+  return /https?:\/\/(?:[a-z0-9-]+\.)+supabase\.co\//i.test(url);
+};
+
 export default function AdminKycPage() {
   const queryClient = useQueryClient();
   const [processingIds, setProcessingIds] = useState<Record<string, "approve" | "reject">>({});
+  // État pour gérer les avatars cassés
+  const [avatarErrors, setAvatarErrors] = useState<Record<string, boolean>>({});
 
   const { data: docs = [], isLoading, isError } = useQuery<KycDocument[]>({
     queryKey: ["adminKyc"],
@@ -150,6 +156,9 @@ export default function AdminKycPage() {
                 ? "Verso CNI"
                 : doc.type;
 
+            // ⚠️ Vérification de l'URL du document
+            const isDocumentUnavailable = doc.fileUrl ? isSupabaseUrl(doc.fileUrl) : false;
+
             return (
               <motion.div
                 key={doc.id}
@@ -165,8 +174,15 @@ export default function AdminKycPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-shrink-0 overflow-hidden">
-                        {doc.user.avatar ? (
-                          <img src={doc.user.avatar} alt="" className="w-full h-full object-cover" />
+                        {doc.user.avatar && !avatarErrors[doc.id] ? (
+                          <img
+                            src={doc.user.avatar}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            onError={() =>
+                              setAvatarErrors((prev) => ({ ...prev, [doc.id]: true }))
+                            }
+                          />
                         ) : (
                           `${doc.user.firstName[0]}${doc.user.lastName[0]}`
                         )}
@@ -192,11 +208,18 @@ export default function AdminKycPage() {
                           minute: "2-digit",
                         })}
                       </span>
+                      {/* Badge indisponible si nécessaire */}
+                      {isDocumentUnavailable && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-[10px] font-medium">
+                          <XCircle size={12} />
+                          Document indisponible
+                        </span>
+                      )}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-center">
-                    {doc.fileUrl && (
+                    {doc.fileUrl && !isDocumentUnavailable && (
                       <a
                         href={doc.fileUrl}
                         target="_blank"
@@ -206,6 +229,9 @@ export default function AdminKycPage() {
                       >
                         <Eye size={18} />
                       </a>
+                    )}
+                    {isDocumentUnavailable && (
+                      <span className="text-xs text-text-secondary italic">N/A</span>
                     )}
                     <Button
                       onClick={() => handleAction(doc.id, "approve")}

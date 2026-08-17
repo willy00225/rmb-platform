@@ -31,13 +31,10 @@ export async function GET(req: Request) {
     ]);
 
     return NextResponse.json({ products, total, page, totalPages: Math.ceil(total / limit) });
-  } catch (error: unknown) {
+  } catch (error) {
     const message = (error as Error).message || "Erreur inconnue";
     console.error("Erreur GET /api/marketplace:", error);
-    return NextResponse.json(
-      { error: "Erreur serveur", details: message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erreur serveur", details: message }, { status: 500 });
   }
 }
 
@@ -48,7 +45,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    // ✅ Vérification KYC
+    // Vérification KYC
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { kycLevel: true },
@@ -60,31 +57,38 @@ export async function POST(req: Request) {
       );
     }
 
-    const { title, description, price, category, images, location, condition } = await req.json();
-    if (!title || !price) {
-      return NextResponse.json({ error: "Titre et prix requis" }, { status: 400 });
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ error: "Données invalides" }, { status: 400 });
+    }
+
+    const { title, description, price, category, images, location, condition } = body;
+
+    // Normalisation et validation
+    if (!title || typeof title !== "string" || title.trim() === "") {
+      return NextResponse.json({ error: "Le titre est requis" }, { status: 400 });
+    }
+    if (price === undefined || price === null || isNaN(Number(price))) {
+      return NextResponse.json({ error: "Le prix est requis et doit être un nombre" }, { status: 400 });
     }
 
     const product = await prisma.marketplaceProduct.create({
       data: {
         userId: session.user.id,
-        title,
-        description: description || "",
-        price,
+        title: title.trim(),
+        description: description ? String(description) : "",
+        price: Number(price),          // conversion en nombre
         category: category || "autre",
-        images: images || [],
-        location: location || null,
+        images: Array.isArray(images) ? images.map(String) : [],  // s'assurer que c'est un tableau de strings
+        location: location ? String(location) : null,
         condition: condition || "new",
       },
     });
 
     return NextResponse.json(product, { status: 201 });
-  } catch (error: unknown) {
+  } catch (error) {
     const message = (error as Error).message || "Erreur inconnue";
     console.error("Erreur POST /api/marketplace:", error);
-    return NextResponse.json(
-      { error: "Erreur serveur", details: message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erreur serveur", details: message }, { status: 500 });
   }
 }

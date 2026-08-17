@@ -1,9 +1,8 @@
 ﻿"use client";
 
-export const dynamic = 'force-dynamic'; // Désactive le prérendu
-
-import { useState, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import {
@@ -31,35 +30,64 @@ const CATEGORIES = [
   { value: "services", label: "Services" },
 ] as const;
 
-export default function NewProductPage() {
+export default function EditProductPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const { id } = useParams<{ id: string }>();
+
+  // États pour les champs
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
   const [location, setLocation] = useState("");
-  const [images, setImages] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Images
+  const [existingImages, setExistingImages] = useState<string[]>([]);
+  const [newImages, setNewImages] = useState<File[]>([]);
+  const [newPreviews, setNewPreviews] = useState<string[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const MAX_IMAGES = 10;
+
+  // Chargement des données produit
+  const { data: product, isLoading, isError } = useQuery({
+    queryKey: ["product", id],
+    queryFn: async () => {
+      const res = await fetch(`/api/marketplace/${id}`);
+      if (!res.ok) throw new Error("Produit introuvable");
+      return res.json();
+    },
+    enabled: !!id,
+  });
+
+  // Préremplir les champs quand le produit est chargé
+  useEffect(() => {
+    if (!product) return;
+    setTitle(product.title || "");
+    setDescription(product.description || "");
+    setPrice(product.price?.toString() || "");
+    setCategory(product.category || "");
+    setLocation(product.location || "");
+    setExistingImages(product.images || []);
+  }, [product]);
 
   const addImages = useCallback(
     (files: FileList | File[]) => {
       const newFiles = Array.from(files).filter(
         (f) => f.type.startsWith("image/") && f.size <= 10 * 1024 * 1024
       );
-      if (newFiles.length + images.length > MAX_IMAGES) {
+      const totalImages = existingImages.length + newImages.length + newFiles.length;
+      if (totalImages > MAX_IMAGES) {
         toast.error(`Maximum ${MAX_IMAGES} images.`);
         return;
       }
-      const newPreviews = newFiles.map((f) => URL.createObjectURL(f));
-      setImages((prev) => [...prev, ...newFiles]);
-      setPreviews((prev) => [...prev, ...newPreviews]);
+      const newPreviewsArray = newFiles.map((f) => URL.createObjectURL(f));
+      setNewImages((prev) => [...prev, ...newFiles]);
+      setNewPreviews((prev) => [...prev, ...newPreviewsArray]);
     },
-    [images.length]
+    [existingImages.length, newImages.length]
   );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,20 +100,20 @@ export default function NewProductPage() {
     if (e.dataTransfer.files) addImages(e.dataTransfer.files);
   };
 
-  const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-    setPreviews((prev) => prev.filter((_, i) => i !== index));
+  const removeExistingImage = (index: number) => {
+    setExistingImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Nouvelle fonction pour téléverser les images une par une
-  const uploadImages = async (): Promise<string[]> => {
-    if (images.length === 0) return [];
+  const removeNewImage = (index: number) => {
+    setNewImages((prev) => prev.filter((_, i) => i !== index));
+    setNewPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
 
+  const uploadImages = async (): Promise<string[]> => {
     const urls: string[] = [];
-    for (const img of images) {
+    for (const img of newImages) {
       const formData = new FormData();
       formData.append("file", img);
-
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
@@ -106,38 +134,63 @@ export default function NewProductPage() {
 
     setLoading(true);
     try {
-      // 1. Téléverser les images et obtenir les URLs
-      const imageUrls = await uploadImages();
+      // Upload des nouvelles images
+      const newUrls = await uploadImages();
+      const combinedImages = [...existingImages, ...newUrls];
 
-      // 2. Envoyer les données en JSON
-      const res = await fetch("/api/marketplace", {
-        method: "POST",
+      // Nettoyage de la description
+      const cleanedDescription = description
+        .replace(/\u00A0/g, " ")
+        .replace(/[\r\n]+/g, " ")
+        .trim();
+
+      const res = await fetch(`/api/marketplace/${id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title,
-          description,
+          title: title.trim(),
+          description: cleanedDescription,
           price: Number(price),
           category,
-          location: location || null,
-          condition: "new",
-          images: imageUrls,
+          location: location ? location.trim() : null,
+          images: combinedImages,
         }),
       });
 
       if (res.ok) {
-        toast.success("Produit publié avec succès !");
+        toast.success("Annonce mise à jour !");
         router.push("/dashboard/marketplace");
+        router.refresh();
       } else {
         const err = await res.json();
-        toast.error(err.error || "Erreur lors de la publication.");
+        toast.error(err.error || "Erreur lors de la mise à jour.");
       }
     } catch (error) {
       console.error(error);
-      toast.error("Erreur lors du téléversement ou de la publication.");
+      toast.error("Erreur lors du téléversement ou de la mise à jour.");
     } finally {
       setLoading(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="animate-spin text-primary" size={40} />
+      </div>
+    );
+  }
+
+  if (isError || !product) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-text-secondary text-lg">Produit introuvable.</p>
+        <Button onClick={() => router.back()} variant="secondary" className="mt-4">
+          Retour
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-fadeInUp py-8 px-4">
@@ -151,7 +204,7 @@ export default function NewProductPage() {
           Retour
         </button>
         <h1 className="text-2xl md:text-3xl font-display font-bold text-text">
-          Vendre un article
+          Modifier l&apos;article
         </h1>
         <div className="w-16" />
       </div>
@@ -245,11 +298,40 @@ export default function NewProductPage() {
           />
         </div>
 
-        {/* Upload images */}
+        {/* Images existantes */}
+        {existingImages.length > 0 && (
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-text mb-2">
+              <ImagePlus size={16} className="text-primary" />
+              Images actuelles
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {existingImages.map((src, index) => (
+                <div key={src} className="relative rounded-xl overflow-hidden aspect-square bg-gray-100 dark:bg-white/5 group">
+                  <img src={src} alt={`Image ${index + 1}`} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeExistingImage(index)}
+                    className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-full opacity-0 group-hover:opacity-100 transition hover:bg-black/80"
+                  >
+                    <X size={14} />
+                  </button>
+                  {index === 0 && (
+                    <span className="absolute bottom-2 left-2 bg-primary text-white text-[10px] px-2 py-0.5 rounded-full font-medium">
+                      Principale
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Upload nouvelles images */}
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-text mb-2">
             <ImagePlus size={16} className="text-primary" />
-            Images ({images.length}/{MAX_IMAGES})
+            Ajouter des images ({existingImages.length + newImages.length}/{MAX_IMAGES})
           </label>
           <div
             onDragOver={(e) => {
@@ -285,46 +367,22 @@ export default function NewProductPage() {
             />
           </div>
 
-          <AnimatePresence>
-            {previews.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3"
-              >
-                {previews.map((src, index) => (
-                  <motion.div
-                    key={src}
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.8, opacity: 0 }}
-                    className="relative rounded-xl overflow-hidden aspect-square bg-gray-100 dark:bg-white/5 group"
+          {newPreviews.length > 0 && (
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {newPreviews.map((src, index) => (
+                <div key={src} className="relative rounded-xl overflow-hidden aspect-square bg-gray-100 dark:bg-white/5 group">
+                  <img src={src} alt={`Nouvelle image ${index + 1}`} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeNewImage(index)}
+                    className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-full opacity-0 group-hover:opacity-100 transition hover:bg-black/80"
                   >
-                    <img
-                      src={src}
-                      alt={`Aperçu ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeImage(index);
-                      }}
-                      className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-full opacity-0 group-hover:opacity-100 transition hover:bg-black/80"
-                    >
-                      <X size={14} />
-                    </button>
-                    {index === 0 && (
-                      <span className="absolute bottom-2 left-2 bg-primary text-white text-[10px] px-2 py-0.5 rounded-full font-medium">
-                        Principale
-                      </span>
-                    )}
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Actions */}
@@ -342,7 +400,7 @@ export default function NewProductPage() {
               <Tag size={18} />
             )}
             <span className="ml-2">
-              {loading ? "Publication..." : "Publier l'article"}
+              {loading ? "Mise à jour..." : "Enregistrer les modifications"}
             </span>
           </Button>
           <Button

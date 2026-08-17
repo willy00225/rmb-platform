@@ -1,5 +1,5 @@
 ﻿"use client";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import {
   MessageCircle,
@@ -18,7 +18,7 @@ import { Session } from "next-auth";
 import { StreamChat } from "stream-chat";
 import type { Event, ChannelMemberResponse, MessageResponse } from "stream-chat";
 import { useChat } from "@/contexts/ChatContext";
-import { useStreamChatState } from "@/contexts/StreamChatContext"; // ← fichier à créer
+import { useStreamChatState } from "@/contexts/StreamChatContext";
 import toast from "react-hot-toast";
 
 /* ---------------------------------- types --------------------------------- */
@@ -51,6 +51,15 @@ function stringToColor(str: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
+/**
+ * Retourne un ID de canal privé unique, quel que soit l'ordre des deux utilisateurs.
+ * C'est ce qui évite les doublons de conversations.
+ */
+function getPrivateChannelId(userId1: string, userId2: string): string {
+  const sorted = [userId1, userId2].sort();
+  return `prv-${sorted[0].substring(0, 8)}-${sorted[1].substring(0, 8)}`;
+}
+
 /* ------------------------------ hooks maison ----------------------------- */
 function usePrivateChannels(chatClient: StreamChat | null, userId: string, open: boolean) {
   const [privateChannels, setPrivateChannels] = useState<ChannelPreview[]>([]);
@@ -73,19 +82,14 @@ function usePrivateChannels(chatClient: StreamChat | null, userId: string, open:
 
         const previews: ChannelPreview[] = filtered
           .map((channel) => {
-            // Conversion explicite pour aider TypeScript
             const members = (Object.values(channel.state.members) as ChannelMemberResponse[]).filter(
               (m) => m.user_id !== userId
             );
             const friendId = members[0]?.user_id;
             const friendUser = members[0]?.user;
-            const name = friendId
-              ? friendUser?.name || "Ami"
-              : channel.id || "Sans nom";
+            const name = friendId ? friendUser?.name || "Ami" : channel.id || "Sans nom";
             const lastMessage = channel.state.messages?.[channel.state.messages.length - 1];
-            const updatedAt = lastMessage?.created_at
-              ? new Date(lastMessage.created_at)
-              : undefined;
+            const updatedAt = lastMessage?.created_at ? new Date(lastMessage.created_at) : undefined;
 
             return {
               id: channel.id || "",
@@ -98,15 +102,31 @@ function usePrivateChannels(chatClient: StreamChat | null, userId: string, open:
               unread: channel.countUnread(),
             };
           })
-          .filter((ch) => Boolean(ch.id)); // ← LIGNE CORRIGÉE (sans type predicate)
+          .filter((ch) => Boolean(ch.id));
 
-        previews.sort((a, b) => {
+        // ✅ Déduplication professionnelle : une seule conversation par ami
+        const deduped = new Map<string, ChannelPreview>();
+        for (const preview of previews) {
+          if (!preview.friendId) continue;
+          const canonicalId = getPrivateChannelId(userId, preview.friendId);
+          const existing = deduped.get(preview.friendId);
+
+          if (!existing) {
+            deduped.set(preview.friendId, preview);
+          } else if (preview.id === canonicalId) {
+            // Le canal canonique (trié) est prioritaire, même s'il est plus ancien
+            deduped.set(preview.friendId, preview);
+          }
+        }
+
+        const uniquePreviews = Array.from(deduped.values());
+        uniquePreviews.sort((a, b) => {
           const timeA = a.updatedAt?.getTime() ?? 0;
           const timeB = b.updatedAt?.getTime() ?? 0;
           return timeB - timeA;
         });
 
-        setPrivateChannels(previews);
+        setPrivateChannels(uniquePreviews);
       } catch (err) {
         console.error("Erreur chargement conversations privées", err);
         toast.error("Impossible de charger les conversations privées.");
@@ -123,15 +143,6 @@ function usePrivateChannels(chatClient: StreamChat | null, userId: string, open:
 
 function useUnreadMessages(chatClient: StreamChat | null, userId: string, open: boolean) {
   const [unreadCount, setUnreadCount] = useState(0);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    // Initialisation du son (création paresseuse)
-    if (!audioRef.current && typeof Audio !== "undefined") {
-      audioRef.current = new Audio("/sounds/new-message.mp3");
-      audioRef.current.volume = 0.3;
-    }
-  }, []);
 
   useEffect(() => {
     if (!chatClient) return;
@@ -139,10 +150,6 @@ function useUnreadMessages(chatClient: StreamChat | null, userId: string, open: 
       const msg = event as MessageEvent;
       if (!open && msg.message?.user?.id !== userId) {
         setUnreadCount((prev) => prev + 1);
-        // Jouer un son discret
-        if (audioRef.current) {
-          audioRef.current.play().catch(() => {});
-        }
       }
     };
     chatClient.on("message.new", handler);
@@ -172,7 +179,6 @@ export function FloatingChat({ session }: { session: Session }) {
   const opacity = useTransform(dragY, [0, 200], [1, 0]);
   const scale = useTransform(dragY, [0, 200], [1, 0.9]);
 
-  // ✅ Récupération des états du client Stream
   const { client: chatClient, connecting, error } = useStreamChatState();
 
   const unreadCount = useUnreadMessages(chatClient, session.user.id, open);
@@ -185,13 +191,11 @@ export function FloatingChat({ session }: { session: Session }) {
   // Raccourcis clavier
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+K pour ouvrir/fermer
       if (e.ctrlKey && e.key === "k") {
         e.preventDefault();
         if (open) closeChat();
         else openChat();
       }
-      // Escape pour revenir à la liste
       if (e.key === "Escape" && open && activeChannelId) {
         setActiveChannelId(null);
         setActiveFriendId(null);
@@ -201,19 +205,14 @@ export function FloatingChat({ session }: { session: Session }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, activeChannelId, openChat, closeChat]);
 
-  // Ouvrir automatiquement la conversation avec un ami si friendId est fourni
+  // Ouvrir automatiquement une conversation privée depuis un ami
   useEffect(() => {
     if (!open || !chatClient || !friendId) return;
 
     const openPrivateFromContext = async () => {
-      const shortId = (id: string) => id.substring(0, 8);
-      // ✅ IDs triés pour éviter les doublons
-      const ids = [session.user.id, friendId].sort();
-      const channelId = `prv-${ids[0].substring(0, 8)}-${ids[1].substring(0, 8)}`;
-
+      const channelId = getPrivateChannelId(session.user.id, friendId);
       const existingChannel = chatClient.channel("messaging", channelId);
       await existingChannel.watch();
-
       setActiveChannelId(channelId);
       setActiveFriendId(friendId);
     };
@@ -321,7 +320,6 @@ export function FloatingChat({ session }: { session: Session }) {
                 </button>
               </div>
             ) : activeChannelId ? (
-              /* Vue conversation active */
               <div className="flex-1 flex flex-col min-h-0">
                 <div className="flex items-center gap-2 p-3 border-b border-border dark:border-white/10">
                   <button
@@ -334,7 +332,6 @@ export function FloatingChat({ session }: { session: Session }) {
                   <h3 className="text-sm font-semibold text-text dark:text-white flex-1">
                     {activeChannelId === "general" ? "Général" : "Conversation privée"}
                   </h3>
-                  {/* Bouton plein écran (desktop) */}
                   <button
                     onClick={() => setIsExpanded(!isExpanded)}
                     className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition hidden md:block"
@@ -353,7 +350,6 @@ export function FloatingChat({ session }: { session: Session }) {
                 </div>
               </div>
             ) : (
-              /* Liste des conversations */
               <div className="flex-1 flex flex-col min-h-0">
                 <div className="p-3 border-b border-border dark:border-white/10 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-text dark:text-white">Messages</h3>

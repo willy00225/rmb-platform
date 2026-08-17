@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useStreamChat } from "@/contexts/StreamChatContext"; // ← import corrigé
+import { useStreamChat } from "@/contexts/StreamChatContext";
 import { useSession } from "next-auth/react";
 import {
   Chat,
@@ -36,15 +36,18 @@ export function ChatWindow({ channelId }: { channelId: string }) {
 
   return (
     <div className="h-full flex flex-col">
-      <Chat client={client}>
-        <Channel channel={channel} Input={CustomMessageInput}>
-          <Window>
-            <ChannelHeader />
-            <MessageList />
-          </Window>
-          <Thread />
-        </Channel>
-      </Chat>
+      <div className="flex-1 min-h-0">
+        <Chat client={client}>
+          <Channel channel={channel}>
+            <Window>
+              <ChannelHeader />
+              <MessageList />
+            </Window>
+            <Thread />
+          </Channel>
+        </Chat>
+      </div>
+      <CustomMessageInput channel={channel} />
     </div>
   );
 }

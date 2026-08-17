@@ -5,7 +5,8 @@ import { LivePlayer } from "@/components/live/LivePlayer";
 import { LiveChat } from "@/components/live/LiveChat";
 import { ArrowLeft, Radio } from "lucide-react";
 import Link from "next/link";
-import { ShareButton } from "@/components/live/ShareButton"; // ← composant client
+import { ShareButton } from "@/components/live/ShareButton";
+import { EndLiveButton } from "@/components/live/EndLiveButton"; // ← import ajouté
 
 export default async function LiveRoomPage({
   params,
@@ -24,6 +25,8 @@ export default async function LiveRoomPage({
     },
   });
   if (!live) notFound();
+
+  const isHost = session.user.id === live.hostId;
 
   return (
     <div className="min-h-screen flex flex-col bg-bkg">
@@ -59,8 +62,9 @@ export default async function LiveRoomPage({
               {live.host.firstName} {live.host.lastName}
             </span>
           </div>
-          {/* ✅ Remplacement du bouton avec onClick par le composant client */}
           <ShareButton />
+          {/* ✅ Bouton terminer visible uniquement pour l'hôte */}
+          {isHost && <EndLiveButton liveId={live.id} />}
         </div>
       </div>
 

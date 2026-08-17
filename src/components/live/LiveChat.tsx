@@ -5,14 +5,14 @@ import { Channel as StreamChannel } from "stream-chat";
 import {
   Chat,
   Channel,
-  ChannelHeader,
   MessageList,
   Window,
   Thread,
 } from "stream-chat-react";
 import "stream-chat-react/dist/css/index.css";
-import { CustomMessageInput } from "@/components/chat/CustomMessageInput"; // ← import corrigé
-import { useStreamChat } from "@/contexts/StreamChatContext"; // ← client global
+import { CustomMessageInput } from "@/components/chat/CustomMessageInput";
+import { CustomMessage } from "@/components/chat/CustomMessage";
+import { useStreamChat } from "@/contexts/StreamChatContext";
 
 export function LiveChat({
   channelId,
@@ -36,13 +36,12 @@ export function LiveChat({
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex-1 min-h-0">
+    <div className="h-full flex flex-col bg-white dark:bg-surface">
+      <div className="flex-1 min-h-0 overflow-hidden">
         <Chat client={client}>
           <Channel channel={channel}>
             <Window>
-              <ChannelHeader />
-              <MessageList />
+              <MessageList Message={CustomMessage} />
             </Window>
             <Thread />
           </Channel>

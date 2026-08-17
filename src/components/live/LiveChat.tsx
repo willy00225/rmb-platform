@@ -1,7 +1,7 @@
 ﻿"use client";
 import { useEffect, useState } from "react";
 import { Session } from "next-auth";
-import { StreamChat, Channel as StreamChannel } from "stream-chat";
+import { Channel as StreamChannel } from "stream-chat";
 import {
   Chat,
   Channel,
@@ -11,7 +11,8 @@ import {
   Thread,
 } from "stream-chat-react";
 import "stream-chat-react/dist/css/index.css";
-import { CustomMessageInput } from "@/components/chat/ChatView";
+import { CustomMessageInput } from "@/components/chat/CustomMessageInput"; // ← import corrigé
+import { useStreamChat } from "@/contexts/StreamChatContext"; // ← client global
 
 export function LiveChat({
   channelId,
@@ -20,35 +21,19 @@ export function LiveChat({
   channelId: string;
   session: Session;
 }) {
-  const [client, setClient] = useState<StreamChat | null>(null);
+  const client = useStreamChat();
   const [channel, setChannel] = useState<StreamChannel | null>(null);
 
   useEffect(() => {
-    if (!session?.user?.id) return;
-    const init = async () => {
-      const res = await fetch("/api/chat/token");
-      const { token } = await res.json();
-      const chatClient = StreamChat.getInstance(
-        process.env.NEXT_PUBLIC_STREAM_API_KEY!
-      );
-      await chatClient.connectUser(
-        { id: session.user.id, name: session.user.name ?? "Membre" },
-        token
-      );
+    if (!client || !channelId) return;
 
-      const liveChannel = chatClient.channel("messaging", channelId);
-      await liveChannel.watch();
-      setClient(chatClient);
-      setChannel(liveChannel);
-    };
-    init();
-    return () => {
-      if (client) client.disconnectUser();
-    };
-  }, [session, channelId]);
+    const ch = client.channel("messaging", channelId);
+    ch.watch().then(() => setChannel(ch));
+  }, [client, channelId]);
 
-  if (!client || !channel)
+  if (!client || !channel) {
     return <p className="text-gray-400 p-4">Chargement du chat...</p>;
+  }
 
   return (
     <div className="h-full flex flex-col">

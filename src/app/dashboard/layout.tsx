@@ -12,6 +12,7 @@ import { OneSignalRegistrar } from "@/components/notifications/OneSignalRegistra
 import { StoriesBar } from "@/components/stories/StoriesBar";
 import { StoryViewer } from "@/components/stories/StoryViewer";
 import { ChatProvider } from "@/contexts/ChatContext";
+import { StreamChatProvider } from "@/contexts/StreamChatContext"; // ← nouveau
 import { NotificationsProvider, useNotifications } from "@/contexts/NotificationsContext";
 import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 import {
@@ -302,11 +303,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <DashboardProviders>
-      <ChatProvider>
-        <NotificationsProvider>
-          <DashboardInnerLayout>{children}</DashboardInnerLayout>
-        </NotificationsProvider>
-      </ChatProvider>
+      <StreamChatProvider>
+        <ChatProvider>
+          <NotificationsProvider>
+            <DashboardInnerLayout>{children}</DashboardInnerLayout>
+          </NotificationsProvider>
+        </ChatProvider>
+      </StreamChatProvider>
     </DashboardProviders>
   );
 }

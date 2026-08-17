@@ -1,5 +1,5 @@
 ﻿"use client";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Session } from "next-auth";
 import {
   Chat,
@@ -411,35 +411,32 @@ export function ChatView({
         let targetChannel: StreamChannel;
 
         if (friendId) {
+          // Conversation privée : l'ID est dérivé des IDs triés pour éviter les doublons
           const usersResponse = await externalClient.queryUsers({ id: { $in: [friendId] } });
           const friend = usersResponse.users[0];
           const name = friend?.name || "Ami";
           setFriendName(name);
 
           const shortId = (id: string) => id.substring(0, 8);
-          const privateChannelId = `prv-${shortId(session.user.id)}-${shortId(friendId)}`;
+          const sortedIds = [session.user.id, friendId].sort();
+          const privateChannelId = `prv-${sortedIds[0].substring(0, 8)}-${sortedIds[1].substring(0, 8)}`;
 
           targetChannel = externalClient.channel("messaging", privateChannelId, {
             members: [session.user.id, friendId],
           });
         } else if (channelId) {
+          // Groupe ou canal existant
           targetChannel = externalClient.channel("messaging", channelId, {
             members: [session.user.id],
           });
         } else {
+          // Canal général
           targetChannel = externalClient.channel("messaging", "general", {
             members: [session.user.id],
           });
         }
 
         await targetChannel.watch();
-
-        if (friendId && friendName) {
-          await (targetChannel as any).updatePartial({ set: { name: friendName } });
-        }
-        if (!channelId && !friendId) {
-          await (targetChannel as any).updatePartial({ set: { name: "Général" } });
-        }
 
         setChannel(targetChannel);
 
@@ -456,6 +453,7 @@ export function ChatView({
         };
       } catch (err) {
         console.error("Erreur résolution canal :", err);
+        toast.error("Impossible de charger la conversation.");
       } finally {
         setLoading(false);
       }

@@ -1,5 +1,5 @@
 ﻿"use client";
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import {
   MessageCircle,
@@ -18,6 +18,7 @@ import { Session } from "next-auth";
 import { StreamChat } from "stream-chat";
 import type { Event, ChannelMemberResponse, MessageResponse } from "stream-chat";
 import { useChat } from "@/contexts/ChatContext";
+import { useStreamChatState } from "@/contexts/StreamChatContext"; // ← fichier à créer
 import toast from "react-hot-toast";
 
 /* ---------------------------------- types --------------------------------- */
@@ -51,56 +52,6 @@ function stringToColor(str: string): string {
 }
 
 /* ------------------------------ hooks maison ----------------------------- */
-function useStreamConnection(session: Session) {
-  const [chatClient, setChatClient] = useState<StreamChat | null>(null);
-  const [connecting, setConnecting] = useState(false);
-  const hasConnected = useRef(false);
-
-  useEffect(() => {
-    if (!session?.user?.id || hasConnected.current) return;
-
-    const connect = async () => {
-      if (!session.user?.id) return;
-      hasConnected.current = true;
-      setConnecting(true);
-      try {
-        const res = await fetch("/api/chat/token");
-        if (!res.ok) throw new Error("Impossible de récupérer le token chat");
-        const { token } = await res.json();
-        if (!token) {
-          toast.error("Token chat vide, connexion impossible.");
-          hasConnected.current = false;
-          return;
-        }
-
-        const client = StreamChat.getInstance(process.env.NEXT_PUBLIC_STREAM_API_KEY!);
-        await client.connectUser(
-          { id: session.user.id, name: session.user.name ?? "Membre" },
-          token
-        );
-        setChatClient(client);
-      } catch (err: any) {
-        console.error("Échec de connexion au chat :", err);
-        toast.error(err?.message ?? "Échec de connexion au chat.");
-        hasConnected.current = false;
-      } finally {
-        setConnecting(false);
-      }
-    };
-
-    connect();
-
-    return () => {
-      if (chatClient) {
-        chatClient.disconnectUser();
-        hasConnected.current = false;
-      }
-    };
-  }, [session, chatClient]);
-
-  return { chatClient, connecting };
-}
-
 function usePrivateChannels(chatClient: StreamChat | null, userId: string, open: boolean) {
   const [privateChannels, setPrivateChannels] = useState<ChannelPreview[]>([]);
   const [loadingChannels, setLoadingChannels] = useState(false);
@@ -122,8 +73,9 @@ function usePrivateChannels(chatClient: StreamChat | null, userId: string, open:
 
         const previews: ChannelPreview[] = filtered
           .map((channel) => {
-            const members = Object.values(channel.state.members).filter(
-              (m: ChannelMemberResponse) => m.user_id !== userId
+            // Conversion explicite pour aider TypeScript
+            const members = (Object.values(channel.state.members) as ChannelMemberResponse[]).filter(
+              (m) => m.user_id !== userId
             );
             const friendId = members[0]?.user_id;
             const friendUser = members[0]?.user;
@@ -146,7 +98,7 @@ function usePrivateChannels(chatClient: StreamChat | null, userId: string, open:
               unread: channel.countUnread(),
             };
           })
-          .filter((ch) => ch.id);
+          .filter((ch) => Boolean(ch.id)); // ← LIGNE CORRIGÉE (sans type predicate)
 
         previews.sort((a, b) => {
           const timeA = a.updatedAt?.getTime() ?? 0;
@@ -220,7 +172,9 @@ export function FloatingChat({ session }: { session: Session }) {
   const opacity = useTransform(dragY, [0, 200], [1, 0]);
   const scale = useTransform(dragY, [0, 200], [1, 0.9]);
 
-  const { chatClient, connecting } = useStreamConnection(session);
+  // ✅ Récupération des états du client Stream
+  const { client: chatClient, connecting, error } = useStreamChatState();
+
   const unreadCount = useUnreadMessages(chatClient, session.user.id, open);
   const { privateChannels, loadingChannels } = usePrivateChannels(
     chatClient,
@@ -253,7 +207,9 @@ export function FloatingChat({ session }: { session: Session }) {
 
     const openPrivateFromContext = async () => {
       const shortId = (id: string) => id.substring(0, 8);
-      const channelId = `prv-${shortId(session.user.id)}-${shortId(friendId)}`;
+      // ✅ IDs triés pour éviter les doublons
+      const ids = [session.user.id, friendId].sort();
+      const channelId = `prv-${ids[0].substring(0, 8)}-${ids[1].substring(0, 8)}`;
 
       const existingChannel = chatClient.channel("messaging", channelId);
       await existingChannel.watch();
@@ -348,9 +304,21 @@ export function FloatingChat({ session }: { session: Session }) {
             role="dialog"
             aria-label="Messagerie"
           >
-            {connecting || !chatClient ? (
-              <div className="flex-1 flex items-center justify-center">
+            {connecting ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-2 p-4">
                 <Loader2 className="animate-spin text-primary" size={24} />
+                <span className="text-sm text-text-secondary">Connexion au chat…</span>
+              </div>
+            ) : error ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 p-4 text-center">
+                <p className="text-sm text-red-500 font-medium">Erreur de connexion</p>
+                <p className="text-xs text-text-secondary">{error}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="mt-2 px-4 py-2 rounded-xl bg-primary text-white text-sm hover:bg-primary-hover transition"
+                >
+                  Réessayer
+                </button>
               </div>
             ) : activeChannelId ? (
               /* Vue conversation active */
@@ -380,7 +348,7 @@ export function FloatingChat({ session }: { session: Session }) {
                     session={session}
                     channelId={activeChannelId}
                     friendId={activeFriendId || undefined}
-                    externalClient={chatClient}
+                    externalClient={chatClient!}
                   />
                 </div>
               </div>
@@ -504,9 +472,9 @@ export function FloatingChat({ session }: { session: Session }) {
       </AnimatePresence>
 
       {/* Modal de création de groupe */}
-      {showGroupModal && (
+      {showGroupModal && chatClient && (
         <CreateGroupModal
-          chatClient={chatClient!}
+          chatClient={chatClient}
           userId={session.user.id}
           onClose={() => setShowGroupModal(false)}
           onGroupCreated={(channelId) => {

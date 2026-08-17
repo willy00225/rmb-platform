@@ -4,7 +4,6 @@ import { Session } from "next-auth";
 import {
   Chat,
   Channel,
-  ChannelHeader,
   MessageList,
   Window,
   Thread,
@@ -14,7 +13,8 @@ import "stream-chat-react/dist/css/index.css";
 import { Loader2, Phone, Video } from "lucide-react";
 import toast from "react-hot-toast";
 import { CallModal } from "@/components/chat/CallModal";
-import { CustomMessageInput } from "@/components/chat/CustomMessageInput"; // ← import du nouveau fichier
+import { CustomMessageInput } from "@/components/chat/CustomMessageInput";
+import { CustomMessage } from "@/components/chat/CustomMessage"; // ← nouveau
 
 export function ChatView({
   session,
@@ -161,8 +161,7 @@ export function ChatView({
         <Chat client={externalClient}>
           <Channel channel={channel}>
             <Window>
-              <ChannelHeader />
-              <MessageList />
+              <MessageList Message={CustomMessage} />
             </Window>
             <Thread />
           </Channel>

@@ -3,8 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import { LivePlayer } from "@/components/live/LivePlayer";
 import { LiveChat } from "@/components/live/LiveChat";
-import { ArrowLeft, Share2, Radio } from "lucide-react";
+import { ArrowLeft, Radio } from "lucide-react";
 import Link from "next/link";
+import { ShareButton } from "@/components/live/ShareButton"; // ← composant client
 
 export default async function LiveRoomPage({
   params,
@@ -58,18 +59,8 @@ export default async function LiveRoomPage({
               {live.host.firstName} {live.host.lastName}
             </span>
           </div>
-          <button
-            onClick={() => {
-              const url = window.location.href;
-              navigator.clipboard.writeText(url).then(() => {
-                // Indiquer visuellement que le lien est copié (optionnel)
-              });
-            }}
-            className="p-1.5 rounded-full hover:bg-white/10 transition"
-            title="Copier le lien"
-          >
-            <Share2 size={18} className="text-text-secondary" />
-          </button>
+          {/* ✅ Remplacement du bouton avec onClick par le composant client */}
+          <ShareButton />
         </div>
       </div>
 
